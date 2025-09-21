@@ -74,13 +74,13 @@ int main() {
 
 
     Truck truck = Truck(1, {1000, 1000, 1000, 1000}, 1);
-    vector<Station> chosen_stations = {Station(0, 10, 15, {0, 5, 0, 3}, {100, 100, 100, 100}), Station(1, 10, 15, {1000, 5, 3000, 3}, {1001, 100, 3005, 100})};
+    vector<Station> chosen_stations = {Station(2, 10, 15, {0, 5, 0, 3}, {100, 100, 100, 100}), Station(3, 10, 15, {1000, 5, 3000, 3}, {1001, 100, 3005, 100})};
     vector<vector<string>> fillings = get_fillings(truck, chosen_stations, gl_num);
 
 
-    for (size_t i = 0; i < chosen_stations.size(); ++i) {
-        assert(chosen_stations[i].number == i && "Station numbers must be consecutive starting from 0");            // TODO: убрать assert и поправить нумерацию, чтобы она не падала
-    }
+    // for (size_t i = 0; i < chosen_stations.size(); ++i) {
+    //     assert(chosen_stations[i].number == i && "Station numbers must be consecutive starting from 0");            // TODO: убрать assert и поправить нумерацию, чтобы она не падала
+    // }
 
     for (auto &filling : fillings) {
         for (auto &elem : filling) {
@@ -95,9 +95,8 @@ int main() {
 
 
 
-    cerr << "fillings[0].size()=" << (fillings.empty() ? 0 : fillings[0].size())
-    //  << " local_to_global.size()=" << local_to_global.size()
-     << " gl_num.size()=" << gl_num.size() << "\n";
+    // cerr << "fillings[0].size()=" << (fillings.empty() ? 0 : fillings[0].size())
+    //  << " gl_num.size()=" << gl_num.size() << "\n";
 
     return 0;
 };

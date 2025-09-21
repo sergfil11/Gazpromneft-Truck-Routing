@@ -217,11 +217,11 @@ vector<vector<string>> get_fillings(Truck truck, vector<Station> chosen_stations
         maxs.insert(maxs.end(), st.remaining_spaces.begin(), st.remaining_spaces.end());
     }
 
-    vector<int> local_to_global;                       // в соответствие со словарём достаём глобальные индексы 
-    for (const Station& st : chosen_stations){
-        int num_res = st.demand.size();                                 // число резервуаров на станции
-        for (int res_idx = 0; res_idx < num_res; res_idx++) {           // проходим по резервуарам и отмечаем номера
-            local_to_global.push_back(gl_num[{st.number, res_idx}]);    // добавляем индекс
+    vector<int> local_to_global;                                // в соответствие со словарём достаём глобальные индексы 
+    for (int i = 0; i < chosen_stations.size(); i++){
+        int num_res = chosen_stations[i].demand.size();         // число резервуаров на станции
+        for (int res_idx = 0; res_idx < num_res; res_idx++) {   // проходим по резервуарам и отмечаем номера
+            local_to_global.push_back(gl_num[{i, res_idx}]);    // добавляем индекс
         }
     }
 
