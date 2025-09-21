@@ -62,8 +62,12 @@ map<pair<int, int>, int> global_numeration(vector<int> lengths);
 
 // Main
 
-// динамический алгоритм поиска всех вариантов выгрузки отсеков бензовоза на множестве резервуаров
+// Динамический алгоритм поиска всех вариантов выгрузки отсеков бензовоза на множестве резервуаров
 pair<vector<int>, vector<vector<vector<string>>>> dp_max_unique_digits_all_masks(const map<int, vector<string>>& possible_combinations, int comp_num);
 
 // Находит все допустимые комбинации отсеков между min[i] и max[i]
 vector<vector<string>> possible_filling(const vector<int>& compartments, const vector<int>& mins, const vector<int>& maxs);
+
+// Возвращает заполнения для выбранного грузовика и станций
+vector<vector<string>> get_fillings(Truck truck, vector<Station> chosen_stations, map<pair<int, int>, int> gl_num);
+

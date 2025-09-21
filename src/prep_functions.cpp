@@ -173,7 +173,7 @@ vector<vector<string>> possible_filling(const vector<int>& compartments, const v
     if (best_masks[0] == (1 << compartments.size()) - 1) {  // есть вариант, в котором все отсеки использованы (он же и будет первым)
        return best_selections[0];
     }
-
+    return vector<vector<string>> {};
 }
 
 
@@ -205,19 +205,52 @@ map<pair<int, int>, int> global_numeration(vector<int> lengths){
             global_number += 1;
         }
     }
+    
     return num;
 }
 
 // Возвращает заполнения для выбранного грузовика и станций (в глобальной нумерации) 
-vector<vector<int>> get_fillings(Truck truck, vector<Station> chosen_stations, map<pair<int, int>, int> gl_num){
+vector<vector<string>> get_fillings(Truck truck, vector<Station> chosen_stations, map<pair<int, int>, int> gl_num){
     vector<int> mins, maxs;
-    for (Station st : chosen_stations){
+    for (Station st : chosen_stations){                                 // добавляем резервуары из станций, аналог extend
         mins.insert(mins.end(), st.demand.begin(), st.demand.end());
         maxs.insert(maxs.end(), st.remaining_spaces.begin(), st.remaining_spaces.end());
     }
+
+    vector<int> local_to_global;                       // в соответствие со словарём достаём глобальные индексы 
+    for (const Station& st : chosen_stations){
+        int num_res = st.demand.size();                                 // число резервуаров на станции
+        for (int res_idx = 0; res_idx < num_res; res_idx++) {           // проходим по резервуарам и отмечаем номера
+            local_to_global.push_back(gl_num[{st.number, res_idx}]);    // добавляем индекс
+        }
+    }
+
+
     vector<vector<string>> fillings;
     fillings = possible_filling(truck.compartments, mins, maxs);
-    return fillings;
+
+    if (fillings.empty()) {         // если нет возможных заполнений
+        return vector<vector<string>> {};
+    }
+
+
+    // осталось перевести заполнения в глобальную нумерацию
+    int total_res_num = gl_num.size();      // всего резервуаров             
+    vector<vector<string>> global_fillings;
+    for (vector<string> filling : fillings){
+        vector<string> curr_fill(total_res_num, "");       // создаём глобальный массив заполнений
+
+        for (int local_idx = 0; local_idx < (int)filling.size(); local_idx++) {
+            if (!filling[local_idx].empty()) {
+                int global_idx = local_to_global[local_idx];    // достаём глобальный индекс
+                curr_fill[global_idx] = filling[local_idx];     // ставим нужные отсеки
+            }
+        }
+        global_fillings.push_back(move(curr_fill));
+    }
+
+    return global_fillings;
+
 }
 
     
