@@ -2,6 +2,10 @@
   "files.associations": {
     "optional": "cpp",
     "iostream": "cpp",
-    "tuple": "cpp"
-  }
+    "tuple": "cpp",
+    "set": "cpp"
+  },
+  "C_Cpp.intelliSenseEngine": "default",
+  "C_Cpp.autocomplete": "default",
+  "C_Cpp.autocompleteAddParentheses": true
 }

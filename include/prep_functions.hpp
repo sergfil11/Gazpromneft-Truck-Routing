@@ -8,6 +8,7 @@
 #include <map>
 #include <sstream>
 #include <set>
+#include <unordered_set>
 
 using namespace std;
 
@@ -56,7 +57,7 @@ vector<vector<int>> combinations(int n, int k);
 set<vector<int>> boolify_reservoirs(const vector<vector<string>>& fillings);
 
 // переводит номер станции и резервуара в глобальный номер резервуара
-map<pair<int, int>, int> global_numeration(vector<int> lengths);
+map<pair<int, int>, int> global_numeration(const vector<int>& lengths);
 
 
 
@@ -69,5 +70,29 @@ pair<vector<int>, vector<vector<vector<string>>>> dp_max_unique_digits_all_masks
 vector<vector<string>> possible_filling(const vector<int>& compartments, const vector<int>& mins, const vector<int>& maxs);
 
 // Возвращает заполнения для выбранного грузовика и станций
-vector<vector<string>> get_fillings(Truck truck, vector<Station> chosen_stations, map<pair<int, int>, int> gl_num);
+vector<vector<string>> get_fillings(const Truck& truck, const vector<Station>& chosen_stations, const map<pair<int, int>, int>& gl_num);
 
+set<vector<string>> all_fillings(
+    const vector<Station>& stations, 
+    const Truck& truck, 
+    const vector<vector<int>>& time_to_station,
+    const map<pair<int,int>,int>& gl_num,
+    int H,
+    int st_in_trip = 3, 
+    int top_nearest = 4,
+    map<int, int> local_index = {}
+    );
+
+set<vector<string>> find_routes(
+    vector<Station> current_route, 
+    const vector<Station>& stations,
+    set<set<int>>& seen_routes, 
+    const Truck& truck,
+    const map<pair<int, int>, int>& gl_num,
+    const map<int,int>& local_index,
+    const vector<vector<int>>& time_to_station, 
+    int current_time, 
+    int st_in_trip, 
+    int top_nearest,
+    int H
+    );

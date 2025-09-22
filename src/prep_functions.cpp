@@ -1,11 +1,12 @@
 #include "prep_functions.hpp"
+#include <iostream>
 
 using namespace std;
 
 // Классы Truck и Station для дальнейшего использования в препроцессинге
 
 Station::Station(int number, int time_to_depot, int time_from_depot,
-            const std::vector<int>& demand, const std::vector<int>& remaining_spaces) :
+            const vector<int>& demand, const vector<int>& remaining_spaces) :
   number(number),
   time_to_depot(time_to_depot),
   time_from_depot(time_from_depot),
@@ -22,7 +23,7 @@ for (int i = 0; i < demand.size(); i++) {       // проходим по зап�
 };
 
 
-Truck::Truck(int number, const std::vector<int>& compartments, std::optional<int> ftid): 
+Truck::Truck(int number, const vector<int>& compartments, optional<int> ftid): 
   number(number), 
   compartments(compartments),
   remaining_time(12*60),
@@ -192,7 +193,7 @@ set<vector<int>> boolify_reservoirs(const vector<vector<string>>& fillings) {
 
 
 // хочу вернуть словарь который по номеру станции и номеру резервуара даст глобальный номер
-map<pair<int, int>, int> global_numeration(vector<int> lengths){
+map<pair<int, int>, int> global_numeration(const vector<int>& lengths){
     int global_number = 0;
     map<pair<int, int>, int> num;
 
@@ -210,7 +211,7 @@ map<pair<int, int>, int> global_numeration(vector<int> lengths){
 }
 
 // Возвращает заполнения для выбранного грузовика и станций (в глобальной нумерации) 
-vector<vector<string>> get_fillings(Truck truck, vector<Station> chosen_stations, map<pair<int, int>, int> gl_num){
+vector<vector<string>> get_fillings(const Truck& truck, const vector<Station>& chosen_stations, const map<pair<int, int>, int>& gl_num){
     vector<int> mins, maxs;
     for (Station st : chosen_stations){                                 // добавляем резервуары из станций, аналог extend
         mins.insert(mins.end(), st.demand.begin(), st.demand.end());
@@ -221,7 +222,7 @@ vector<vector<string>> get_fillings(Truck truck, vector<Station> chosen_stations
     for (int i = 0; i < chosen_stations.size(); i++){
         int num_res = chosen_stations[i].demand.size();         // число резервуаров на станции
         for (int res_idx = 0; res_idx < num_res; res_idx++) {   // проходим по резервуарам и отмечаем номера
-            local_to_global.push_back(gl_num[{i, res_idx}]);    // добавляем индекс
+            local_to_global.push_back(gl_num.at({i, res_idx}));    // добавляем индекс
         }
     }
 
@@ -253,44 +254,143 @@ vector<vector<string>> get_fillings(Truck truck, vector<Station> chosen_stations
 
 }
 
+// TODO: unordered_set<vector<int>>, написать хэш для вектора
+
+set<vector<string>> find_routes(
+    vector<Station> current_route, 
+    const vector<Station>& stations,
+    set<set<int>>& seen_routes, 
+    const Truck& truck,
+    const map<pair<int, int>, int>& gl_num,
+    const map<int,int>& local_index,
+    const vector<vector<int>>& time_to_station, 
+    int current_time, 
+    int st_in_trip, 
+    int top_nearest,
+    int H
+    ) {
+    if (current_route.size() == st_in_trip){
+        set<int> route_key;
+        for (const auto& station : current_route) {
+            route_key.insert(station.number);           // сохраняем изначальные номера станций в множестве
+        }
+        if (seen_routes.find(route_key) != seen_routes.end()){      // если уже есть такой маршрут
+            return set<vector<string>> {};
+        }
+        seen_routes.insert(route_key);      // если ещё не видели, добавляем
     
+        cout << "route: [";
+        for (size_t i = 0; i < current_route.size(); ++i) {
+            cout << current_route[i].number;
+            if (i + 1 < current_route.size()) cout << ", ";
+        }
+        cout << "], curr_time: " << current_time << endl;
+        
+        vector<vector<string>> fillings = get_fillings(truck, current_route, gl_num);
+
+        if (fillings.empty()) return set<vector<string>> {}; // заполнения не нашлись        
+        set<vector<string>> s(fillings.begin(), fillings.end());  // возвращаем множество заполнений 
+        return s;
+    }
+    
+    // если ещё не набрали нужное число станций, делаем следующие шаги:
+    Station last_station = current_route.back();    // последняя станция маршрута
+    int last_station_local = local_index.at(last_station.number);   // номер этой станции среди нашего подмножества доступных станций
+
+    vector<pair<int,int>> res;          // вектор пар (время, номер станции)
+    for (int i = 0; i < (int)time_to_station[last_station_local].size(); i++) {
+        res.emplace_back(time_to_station[last_station_local][i], i);                // в конце вектора создаём пару (время, номер станции)
+    }
+
+    // 1.Сортировка по времени
+    sort(res.begin(), res.end(),                                // сортируем от начала до конца по правилу сравнения пар - если первый элемент больше, то это бОльшая пара
+         [](const pair<int,int>& a, const pair<int,int>& b) {
+             return a.first < b.first;
+         });
+
+    // 2.Обрезаем до top_nearest
+    if ((int)res.size() > top_nearest) {
+        res.resize(top_nearest);
+    }
+
+    // 3.Обрезаем те, что не подходят по времени
+    auto it = find_if(res.begin(), res.end(),
+    [&](const pair<int,int>& p){
+        return current_time + p.first + stations[p.second].time_to_depot > H;
+    });
+    res.erase(it, res.end());
+
+    // vector<pair<int,int>> filtered;
+    // for (const auto& p : res) {
+    //     int time = p.first;
+    //     int idx  = p.second;
+    //     if (current_time + time + stations[idx].time_to_depot <= H) filtered.push_back(p); else break; 
+    //     // дальше все элементы уже будут больше по времени
+    // }
+
+    // 4.Для оставшихся станций строим новые маршруты
+    set<vector<string>> result;
+    for (const auto& [time, idx] : res) {
+        bool already_in_route = false;
+        for (const Station& st : current_route) {
+            if (stations[idx].number == st.number){
+                already_in_route = true;
+                break;
+            }
+        }
+        if (already_in_route) continue;
+
+        current_route.push_back(stations[idx]);
+        set<vector<string>> tmp = find_routes(current_route, stations, seen_routes, truck, gl_num, local_index, time_to_station, current_time + time, st_in_trip, top_nearest, H);
+        current_route.pop_back();
+
+        result.insert(tmp.begin(), tmp.end());
+    }
+    return result;
+}
 
 
-// def get_fillings(truck: Truck, chosen_stations: list[Station], gl_num: dict[tuple[int, int], int]) -> list[list[bool]]:
-//     "Возвращает заполнения для выбранного грузовика и станций (в глобальной нумерации)"
-//     mins, maxs = [], []
-//     for station in chosen_stations:         # объединяем массивы демандов и максимумов для нескольких станций
-//         mins.extend(station.demand)
-//         maxs.extend(station.remaining_space)
-//     # print(mins,maxs)
+/**
+ * @brief Возвращает все возможные варианты заполнения резервуаров на одном маршруте бензовоза.
+ * 
+ * @param stations Список станций, доступных бензовозу k.
+ * @param truck Бензовоз с известными отсеками.
+ * @param time_to_station Матрица времени поездки между доступными станциями.
+ * @param gl_num Словарь глобальной нумерации: 
+ *        ключ = (номер станции, номер резервуара на станции)
+ *        значение = глобальный индекс резервуара.
+ * @param H Длина рабочей смены.
+ * @param st_in_trip Точное число станций в маршруте (по умолчанию 3).
+ * @param top_nearest Размер окрестности на каждом шаге поиска (по умолчанию 4).
+ * @param local_index Маппинг из глобального номера станции в локальный индекс  
+ *        в списке stations и time_to_station, которые содержат только доступные станции.
+ * 
+ * @return set<vector<int,...>> Множество кортежей длины reservoir_count,
+ *         каждый кортеж — вариант заполнения резервуаров в глобальной нумерации.
+ */
+set<vector<string>> all_fillings(              // TODO: сделать unordered_set, но написать хеш для vector<int>
+    const vector<Station>& stations, 
+    const Truck& truck, 
+    const vector<vector<int>>& time_to_station,
+    const map<pair<int,int>,int>& gl_num,
+    int H,
+    int st_in_trip, 
+    int top_nearest,
+    map<int, int> local_index
+    ) {
     
-//     local_to_global = []    # в соответствие со словарём достаём глобальные индексы 
-//     for st in chosen_stations:
-//         num_res = len(st.demand)        # число резервуаров на станции
-//         for res_idx in range(num_res):
-//             local_to_global.append(gl_num[(st.number, res_idx)])  # добавляем индекс
+    if (local_index.empty()){
+        for (const Station& st : stations) local_index[st.number] = st.number;   
+    }
+    set<set<int>> seen_routes {};
+    set<vector<string>> final_set;
+    
+    for (const Station& station : stations){
+        vector<Station> initial_route = {station};  
+        int start_time = station.time_from_depot + truck.pour_time;
+        set<vector<string>> tmp = find_routes(initial_route, stations, seen_routes, truck, gl_num, local_index, time_to_station, start_time, st_in_trip, top_nearest, H);
+        final_set.insert(tmp.begin(), tmp.end());
+    }
 
-
-//     f = possible_filling(truck.compartments, mins, maxs)
-//     # print(f'Total number before boolification {len(f)}')    
-    
-//     if f is None: 
-//         return
-    
-//     # print(f)
-//     # f = bool_res(f)
-//     # print(f'Total number after boolification {len(f)}')
-    
-//     total_res_num = len(gl_num.keys())      # всего резервуаров             
-    
-//     global_fillings = []                    # TODO: в идеале мне бы сразу индексы единичек хранить в словаре а не пробегаться по всему массиву (тогда в следующей функции делать sorted по ключам)
-//     for filling in f:
-//         filling_arr = np.array(filling)
-//         indices = np.nonzero(filling_arr)[0]                # индексы резервуаров которые мы решили заполнять
-//         curr_fill = [0 for _ in range(total_res_num)]       # глобальный filling
-//         for local_idx in indices:
-//             global_idx = local_to_global[local_idx]         # достаём глобальный индекс
-//             curr_fill[global_idx] = filling[local_idx]      # ставим нужные отсеки
-//         global_fillings.append(curr_fill)
-
-//     return global_fillings
+    return final_set;
+}
