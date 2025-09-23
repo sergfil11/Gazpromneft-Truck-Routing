@@ -1,5 +1,10 @@
 #include "prep_functions.hpp"
 #include <iostream>
+#include <format>
+#include <sstream>
+#include <algorithm>
+#include <numeric>
+#include <cmath>
 
 using namespace std;
 
@@ -393,4 +398,174 @@ set<vector<string>> all_fillings(              // TODO: сделать unordered
     }
 
     return final_set;
+}
+
+
+// Ищет оптимальное распределение времён на 2 работы полным перебором
+int two_pipes_opt(const vector<int>& fill_times){
+    int n = fill_times.size();
+    if (n == 1) return fill_times[0];
+    vector<int> idxs(n);
+    iota(idxs.begin(), idxs.end(), 0);  // [0,1,2,...,n-1]
+    int best = INT_MAX;
+
+    // vector<bool> in_comb(n, false);
+    // for (int i : comb) in_comb[i] = true;
+
+    // for (int i = 0; i < n; i++) {
+    //     if (in_comb[i]) t1 += fill_times[i];
+    //     else            t2 += fill_times[i];
+    // }
+
+    // перебор размера первого подмножества (до n/2)
+    for (int k = 0; k <= n/2; k++){             
+        auto combs = combinations(n, k);    // перебираем комбинации размера k
+        for (auto &comb : combs) {
+            int t1 = 0, t2 = 0;
+            for (int i = 0, j = 0; i < n; i++) {                // проходим по всем временам и создаём две суммы
+                if (j < (int)comb.size() && comb[j] == i) {
+                    t1 += fill_times[i];                        // если в комбинации, то в первую сумму
+                    j++;                                        // и сдвигаем внутрениий counter внутри комбинации
+                } else {
+                    t2 += fill_times[i];                        // иначе во вторую сумму
+                }
+            }
+            best = min(best, max(t1, t2));
+        }
+    }
+    return best;
+}
+
+double roundN(double val, int n) {
+    double factor = pow(10, n);
+    return round(val * factor) / factor;
+}
+
+
+void log_time(const vector<string>& messages = {}, vector<string>& time_log) {
+    stringstream ss;
+    for (const auto& msg : messages) {  // добавляем все строки из массива
+        ss << msg;
+    }
+    time_log.push_back(ss.str());
+}
+
+vector<int, vector<string>> compute_time_for_route(
+    map<int, pair<int, int>> reverse_index,
+    vector<int> compartments, 
+    vector<string> fill,
+    bool double_piped,
+    vector<Station> input_station_list,
+    vector<vector<int>> demanded_matrix,
+    vector<int> docs_fill
+    ){
+    double pour_time = (accumulate(compartments.begin(), compartments.end(), 0) / 1000) * 3;      // время заполнения бензовоза в депо
+    
+    vector<int> idx {};
+    for (int i = 0; i < fill.size(); i++){
+        if (!fill[i].empty()) idx.push_back(i);             // индексы резервуаров, заполняемых на этом маршруте
+    }
+
+    // теперь для тех резервуаров, которые реально заполняются, найдём номера их станций
+    set<int> tmp;                        // множество уникальных элементов
+    for (int i : idx) {
+        tmp.insert(reverse_index[i].first);  
+    }
+    vector<int> ordered_st(tmp.begin(), tmp.end());     // отсортированный вектор посещаемых станций
+    for (int i = 0; i < ordered_st.size(); i++){
+       cout << ordered_st[i] << " ";
+    }
+
+    map<int, vector<string>> station_resevoirs {};
+    map<int, string> station_comps {};
+
+    for (int st : ordered_st){
+        vector <string> comps {};      // отсеки, выгружаемые на этой станции
+        for (int i : idx) {
+            if (reverse_index[i].first == st) {
+                comps.push_back(fill[i]); 
+                station_comps[st] += fill[i];
+            }
+        }
+        station_resevoirs[st] = comps;          // резервуары, выгружаемые на этой станции
+    }
+
+    vector<vector<int>> permutations;   // лист комбинаций
+    do {
+        permutations.push_back(ordered_st);  // сохраняем текущую перестановку
+    } while (next_permutation(ordered_st.begin(), ordered_st.end()));
+
+    vector<int> times{};
+    vector<vector<string>> timelogs {};
+
+    for (const vector<int>& perm : permutations) {
+
+        if (station_comps[perm.back()].find('0') == string::npos){   // если первый отсек выгружается не на последней станции, пропускаем комбинацию
+            continue;
+        }
+        vector<string> time_log {};
+        int time = 0;
+
+        // заполнение документов на каждой из станций
+        for (int stn_n : ordered_st) {
+            time += docs_fill[stn_n];
+            log_time({to_string(docs_fill[stn_n]) + " минут - время заполнения документов на станции " + to_string(stn_n)}, time_log);
+        }
+
+        // если только один рукав, знаем времена
+        if (!double_piped){
+            time += 2 * roundN(pour_time, 3);    // время на заполнение бензовоза (до рейса и во время)
+            log_time({to_string(2 * roundN(pour_time, 3)) + " минут - заполнение резервуаров одним шлангом на станциях и в депо"}, time_log);
+        }
+        else {      // двушланговый, пытаемся быстрее разгрузить
+            for (int st : perm) {
+                if (station_comps[st].size() > 1) {   // если на станции выгружается больше одного отсека
+                    vector<int> reservoir_fill_values {}; 
+                    for (string string_of_comps  : station_resevoirs[st]){   // беру строчки - комбинации отсеков для каждого резервуара
+                        int local_sum = 0;
+                        for (char comp_number : string_of_comps) {                          // итерируюсь по каждой цифре - номеру отсека
+                            local_sum += compartments[int(comp_number - '0')] / 1000 * 3;
+                            reservoir_fill_values.push_back(local_sum);
+                        }
+                    }
+                    int optimal_filling_time = roundN(two_pipes_opt(reservoir_fill_values),3);
+                    time += optimal_filling_time;
+                    log_time({to_string(optimal_filling_time) + " минут - заполнение резервуаров двумя шлангами на станции " + to_string(st)}, time_log);
+                }
+                else {
+                    int optimal_filling_time = roundN(compartments[int(station_comps[st][0] - '0')] / 1000 * 3, 3);
+                       time += optimal_filling_time;
+                       log_time({to_string(optimal_filling_time) + " минут - заполнение одного резервуара одним шлангом на станции " + to_string(st)}, time_log);
+            
+                time += roundN(pour_time, 3);
+                log_time({to_string(roundN(pour_time,3)) + "минут - заполнение резервуаров одним шлангом в депо"}, time_log);
+                }
+            }
+        }
+
+        int first = perm[0];                                      // достали станцию
+        time += input_station_list[first].time_to_depot;          // доехали до нее от депо
+        log_time({to_string(roundN(input_station_list[first].time_to_depot, 3)) + " минут - время от депо до станции " + to_string(first)}, time_log);  
+
+        for (int i = 0; i + 1 < perm.size(); i++) {            // ездим между станциями
+            int curr_station = perm[i];
+            int next_station = perm[i + 1];
+
+            time += demanded_matrix[curr_station][next_station];
+            log_time({to_string(demanded_matrix[curr_station][next_station]) + " минут - время от станции " + to_string(curr_station) + " до станции " + to_string(next_station)}, time_log);
+        }
+
+        int last_st = perm.back();
+        time += input_station_list[last_st].time_to_depot;    // возвращаемся в депо
+        log_time({to_string(roundN(input_station_list[last_st].time_to_depot, 3)) + " минут - время от станции " + to_string(last_st) + " до депо"}, time_log);
+
+        times.push_back(time);
+        timelogs.push_back(time_log);
+    }
+    
+    if (!times.empty()){
+        int minimal_time = min(times.begin(), times.end());
+        min_time_idx = [idx for idx, time in enumerate(times) if time == minimal_time]
+    }
+    return (10000, []) if not times else (minimal_time, timelogs[min_time_idx[0]]) 
 }

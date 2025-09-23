@@ -106,6 +106,11 @@ int main() {
         cout << endl;
     }
 
+    // TWO_PIPES_OPT_TEST
+    vector<int> fill_times = {3, 1, 4, 2, 7, 9};
+    int best = two_pipes_opt(fill_times);
+    cout << "BEST TIME = " << best << endl;
+
 
     // cerr << "fillings[0].size()=" << (fillings.empty() ? 0 : fillings[0].size())
     //  << " gl_num.size()=" << gl_num.size() << "\n";

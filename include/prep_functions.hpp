@@ -1,12 +1,9 @@
 #pragma once   // защита от двойного включения
 
 #include <vector>
-#include <numeric>
 #include <optional>
 #include <string>
-#include <algorithm>
 #include <map>
-#include <sstream>
 #include <set>
 #include <unordered_set>
 
@@ -34,7 +31,7 @@ public:
     vector<int> compartments;
     int remaining_time;
     int total_trips;
-    int pour_time;
+    double pour_time;
     optional<int> FuelTankerID;
 
     Truck(int number, const vector<int>& compartments, optional<int> ftid);
@@ -96,3 +93,5 @@ set<vector<string>> find_routes(
     int top_nearest,
     int H
     );
+
+int two_pipes_opt(const vector<int>& fill_times);

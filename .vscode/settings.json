@@ -3,7 +3,9 @@
     "optional": "cpp",
     "iostream": "cpp",
     "tuple": "cpp",
-    "set": "cpp"
+    "set": "cpp",
+    "sstream": "cpp",
+    "string": "cpp"
   },
   "C_Cpp.intelliSenseEngine": "default",
   "C_Cpp.autocomplete": "default",
