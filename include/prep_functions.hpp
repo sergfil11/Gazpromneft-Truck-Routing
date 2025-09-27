@@ -95,3 +95,15 @@ set<vector<string>> find_routes(
     );
 
 int two_pipes_opt(const vector<int>& fill_times);
+
+// void log_time(const vector<string>& messages, vector<string>& time_log);
+
+pair<int, vector<string>> compute_time_for_route(
+    const map<int, pair<int, int>>& reverse_index,
+    const vector<int>& compartments, 
+    const vector<string>& fill,
+    bool double_piped,
+    const vector<Station>& input_station_list,
+    const vector<vector<int>>& demanded_matrix,
+    const vector<int>& docs_fill
+    );

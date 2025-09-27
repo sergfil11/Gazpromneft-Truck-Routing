@@ -1,13 +1,14 @@
 #include "prep_functions.hpp"
 #include <iostream>
 #include <assert.h>
+#include <locale>
 
 
 using namespace std;
 
 int main() {
-
-
+    setlocale(LC_ALL, ".utf8");
+    
     // MASKS TEST
     // vector<int> demand = {0, 5, 0, 3};
     // vector<int> spaces = {100, 100, 100, 100};
@@ -82,38 +83,70 @@ int main() {
     // }
 
     // ALL_FILLINGS_TEST
-    vector<Station> stations = {
-        Station(0, 0, 2, {5, 0}, {10, 10}),
-        Station(1, 1, 1, {3, 2}, {10, 10})
-    };
-    Truck truck(1, {5, 5}, 1);  // два отсека по 5 единиц
-    vector<vector<int>> time_to_station = {
-        {0, 1},
-        {1, 0}
-    };
-    map<pair<int,int>,int> gl_num = {
-        {{0,0}, 0}, {{0,1}, 1},
-        {{1,0}, 2}, {{1,1}, 3}
-    };
-    int H = 5;
-    int st_in_trip = 2;
-    int top_nearest = 2;
-    set<vector<string>> result = all_fillings(stations, truck, time_to_station, gl_num, H, st_in_trip, top_nearest);
-    int cnt = 0;
-    for (const auto& filling : result) {
-        cout << "Filling " << cnt++ << ": ";
-        for (const auto& val : filling) cout << (val.empty() ? "x" : val) << " ";
-        cout << endl;
-    }
+    // vector<Station> stations = {
+    //     Station(0, 0, 2, {5, 0}, {10, 10}),
+    //     Station(1, 1, 1, {3, 2}, {10, 10})
+    // };
+    // Truck truck(1, {5, 5}, 1);  // два отсека по 5 единиц
+    // vector<vector<int>> time_to_station = {
+    //     {0, 1},
+    //     {1, 0}
+    // };
+    // map<pair<int,int>,int> gl_num = {
+    //     {{0,0}, 0}, {{0,1}, 1},
+    //     {{1,0}, 2}, {{1,1}, 3}
+    // };
+    // int H = 5;
+    // int st_in_trip = 2;
+    // int top_nearest = 2;
+    // set<vector<string>> result = all_fillings(stations, truck, time_to_station, gl_num, H, st_in_trip, top_nearest);
+    // int cnt = 0;
+    // for (const auto& filling : result) {
+    //     cout << "Filling " << cnt++ << ": ";
+    //     for (const auto& val : filling) cout << (val.empty() ? "x" : val) << " ";
+    //     cout << endl;
+    // }
 
     // TWO_PIPES_OPT_TEST
-    vector<int> fill_times = {3, 1, 4, 2, 7, 9};
-    int best = two_pipes_opt(fill_times);
-    cout << "BEST TIME = " << best << endl;
+    // vector<int> fill_times = {3, 1, 4, 2, 7, 9};
+    // int best = two_pipes_opt(fill_times);
+    // cout << "BEST TIME = " << best << endl;
 
 
-    // cerr << "fillings[0].size()=" << (fillings.empty() ? 0 : fillings[0].size())
-    //  << " gl_num.size()=" << gl_num.size() << "\n";
+    // COMPUTE_TIME_FOR_ROUTE_TEST
+    map<int, pair<int,int>> reverse_index = {
+        {0, {1,0}}, {1, {1,0}}, {2, {2,0}}, {3, {3,0}}
+    };
+    vector<int> compartments = {1000, 2000, 1500, 1200};
+    vector<string> fill = {"0", "1", "0", "3"};  // строки как в твоей функции
+    bool double_piped = true;
+    vector<Station> input_station_list = {
+        Station(0, 5, 5, {0, 1}, {10, 10}),
+        Station(1, 3, 3, {1, 0}, {10, 10}),
+        Station(2, 4, 4, {0, 1}, {10, 10}),
+        Station(2, 4, 4, {0, 1}, {10, 10})
+    };
+    vector<vector<int>> demanded_matrix = {
+        {0,5,10,15},
+        {5,0,8,12},
+        {10,8,0,6},
+        {15,12,6,0}
+    };
+    vector<int> docs_fill = {3,4,5,2};
+    pair<int, vector<string>> result = compute_time_for_route(
+        reverse_index,
+        compartments,
+        fill,
+        double_piped,
+        input_station_list,
+        demanded_matrix,
+        docs_fill
+    );
+    cout << "Минимальное время: " << result.first << " минут\n";
+    cout << "Лог времени:\n";
+    for (const string& s : result.second) {
+        cout << "  " << s << "\n";
+    }
 
     return 0;
 };

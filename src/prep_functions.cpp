@@ -442,7 +442,7 @@ double roundN(double val, int n) {
 }
 
 
-void log_time(const vector<string>& messages = {}, vector<string>& time_log) {
+void log_time(const vector<string>& messages, vector<string>& time_log) {
     stringstream ss;
     for (const auto& msg : messages) {  // добавляем все строки из массива
         ss << msg;
@@ -450,14 +450,14 @@ void log_time(const vector<string>& messages = {}, vector<string>& time_log) {
     time_log.push_back(ss.str());
 }
 
-vector<int, vector<string>> compute_time_for_route(
-    map<int, pair<int, int>> reverse_index,
-    vector<int> compartments, 
-    vector<string> fill,
+pair<int, vector<string>> compute_time_for_route(
+    const map<int, pair<int, int>>& reverse_index,
+    const vector<int>& compartments, 
+    const vector<string>& fill,
     bool double_piped,
-    vector<Station> input_station_list,
-    vector<vector<int>> demanded_matrix,
-    vector<int> docs_fill
+    const vector<Station>& input_station_list,
+    const vector<vector<int>>& demanded_matrix,
+    const vector<int>& docs_fill
     ){
     double pour_time = (accumulate(compartments.begin(), compartments.end(), 0) / 1000) * 3;      // время заполнения бензовоза в депо
     
@@ -469,25 +469,29 @@ vector<int, vector<string>> compute_time_for_route(
     // теперь для тех резервуаров, которые реально заполняются, найдём номера их станций
     set<int> tmp;                        // множество уникальных элементов
     for (int i : idx) {
-        tmp.insert(reverse_index[i].first);  
+        tmp.insert(reverse_index.at(i).first);  
     }
     vector<int> ordered_st(tmp.begin(), tmp.end());     // отсортированный вектор посещаемых станций
-    for (int i = 0; i < ordered_st.size(); i++){
-       cout << ordered_st[i] << " ";
-    }
+    // for (int i = 0; i < ordered_st.size(); i++){
+    //    cout << ordered_st[i] << " ";
+    // }
 
     map<int, vector<string>> station_resevoirs {};
     map<int, string> station_comps {};
 
     for (int st : ordered_st){
         vector <string> comps {};      // отсеки, выгружаемые на этой станции
+        string& comps_str = station_comps[st];  // ссылка на строку в map, чтобы не создавать копию
+
         for (int i : idx) {
-            if (reverse_index[i].first == st) {
-                comps.push_back(fill[i]); 
-                station_comps[st] += fill[i];
+            const string& f = fill[i];
+
+            if (reverse_index.at(i).first == st) {
+                comps.push_back(f); 
+                station_comps[st] += f;
             }
         }
-        station_resevoirs[st] = comps;          // резервуары, выгружаемые на этой станции
+        station_resevoirs[st] = move(comps);          // резервуары, выгружаемые на этой станции
     }
 
     vector<vector<int>> permutations;   // лист комбинаций
@@ -521,7 +525,7 @@ vector<int, vector<string>> compute_time_for_route(
             for (int st : perm) {
                 if (station_comps[st].size() > 1) {   // если на станции выгружается больше одного отсека
                     vector<int> reservoir_fill_values {}; 
-                    for (string string_of_comps  : station_resevoirs[st]){   // беру строчки - комбинации отсеков для каждого резервуара
+                    for (const string& string_of_comps : station_resevoirs[st]){   // беру строчки - комбинации отсеков для каждого резервуара
                         int local_sum = 0;
                         for (char comp_number : string_of_comps) {                          // итерируюсь по каждой цифре - номеру отсека
                             local_sum += compartments[int(comp_number - '0')] / 1000 * 3;
@@ -552,7 +556,7 @@ vector<int, vector<string>> compute_time_for_route(
             int next_station = perm[i + 1];
 
             time += demanded_matrix[curr_station][next_station];
-            log_time({to_string(demanded_matrix[curr_station][next_station]) + " минут - время от станции " + to_string(curr_station) + " до станции " + to_string(next_station)}, time_log);
+            log_time({to_string(roundN(demanded_matrix[curr_station][next_station],3)) + " минут - время от станции " + to_string(curr_station) + " до станции " + to_string(next_station)}, time_log);
         }
 
         int last_st = perm.back();
@@ -560,12 +564,13 @@ vector<int, vector<string>> compute_time_for_route(
         log_time({to_string(roundN(input_station_list[last_st].time_to_depot, 3)) + " минут - время от станции " + to_string(last_st) + " до депо"}, time_log);
 
         times.push_back(time);
-        timelogs.push_back(time_log);
+        timelogs.emplace_back(move(time_log));      // переносим логи
     }
     
-    if (!times.empty()){
-        int minimal_time = min(times.begin(), times.end());
-        min_time_idx = [idx for idx, time in enumerate(times) if time == minimal_time]
+    if (!times.empty()) {
+        int indx = distance(times.begin(), min_element(times.begin(), times.end()));         // индекс ближайшего (с начала массива) минимального элемента
+        return {times[indx], timelogs[indx]};
     }
-    return (10000, []) if not times else (minimal_time, timelogs[min_time_idx[0]]) 
+
+    return {10000, {}};              // 10000 - просто большое число
 }

@@ -5,7 +5,9 @@
     "tuple": "cpp",
     "set": "cpp",
     "sstream": "cpp",
-    "string": "cpp"
+    "string": "cpp",
+    "random": "cpp",
+    "limits": "cpp"
   },
   "C_Cpp.intelliSenseEngine": "default",
   "C_Cpp.autocomplete": "default",
