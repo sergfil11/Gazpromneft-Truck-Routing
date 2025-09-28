@@ -28,14 +28,12 @@ for (int i = 0; i < demand.size(); i++) {       // проходим по зап�
 };
 
 
-Truck::Truck(int number, const vector<int>& compartments, optional<int> ftid): 
+Truck::Truck(int number, const vector<int>& compartments): 
   number(number), 
   compartments(compartments),
   remaining_time(12*60),
   total_trips(0),
-  pour_time((accumulate(compartments.begin(), compartments.end(), 0) / 1000) * 3),
-  FuelTankerID(ftid) 
-{};
+  pour_time((accumulate(compartments.begin(), compartments.end(), 0) / 1000) * 3) {};
 
 
 // Функции для работы с маской внутри алгоритма динамического программирования
@@ -223,13 +221,17 @@ vector<vector<string>> get_fillings(const Truck& truck, const vector<Station>& c
         maxs.insert(maxs.end(), st.remaining_spaces.begin(), st.remaining_spaces.end());
     }
 
-    vector<int> local_to_global;                                // в соответствие со словарём достаём глобальные индексы 
-    for (int i = 0; i < chosen_stations.size(); i++){
-        int num_res = chosen_stations[i].demand.size();         // число резервуаров на станции
-        for (int res_idx = 0; res_idx < num_res; res_idx++) {   // проходим по резервуарам и отмечаем номера
-            local_to_global.push_back(gl_num.at({i, res_idx}));    // добавляем индекс
+    vector<int> local_to_global;
+    for (const Station& st : chosen_stations) {
+        int num_res = st.demand.size();  // число резервуаров на станции
+        for (int res_idx = 0; res_idx < num_res; res_idx++) {
+            // if (gl_num.count({st.number, res_idx}) == 0) {
+            //     cout << "missing: " << st.number << " " << res_idx << endl;
+            // }
+            local_to_global.push_back(gl_num.at({st.number, res_idx}));
         }
     }
+
 
 
     vector<vector<string>> fillings;
@@ -268,7 +270,7 @@ set<vector<string>> find_routes(
     const Truck& truck,
     const map<pair<int, int>, int>& gl_num,
     const map<int,int>& local_index,
-    const vector<vector<int>>& time_to_station, 
+    const vector<vector<double>>& time_to_station, 
     int current_time, 
     int st_in_trip, 
     int top_nearest,
@@ -293,6 +295,12 @@ set<vector<string>> find_routes(
         
         vector<vector<string>> fillings = get_fillings(truck, current_route, gl_num);
 
+        if (fillings.empty()) {
+            cout << "⚠️ Нет заполнений для маршрута: ";
+            for (Station s : current_route) cout << s.number << " ";
+            cout << endl;
+        }
+        
         if (fillings.empty()) return set<vector<string>> {}; // заполнения не нашлись        
         set<vector<string>> s(fillings.begin(), fillings.end());  // возвращаем множество заполнений 
         return s;
@@ -376,7 +384,7 @@ set<vector<string>> find_routes(
 set<vector<string>> all_fillings(              // TODO: сделать unordered_set, но написать хеш для vector<int>
     const vector<Station>& stations, 
     const Truck& truck, 
-    const vector<vector<int>>& time_to_station,
+    const vector<vector<double>>& time_to_station,
     const map<pair<int,int>,int>& gl_num,
     int H,
     int st_in_trip, 
@@ -384,9 +392,11 @@ set<vector<string>> all_fillings(              // TODO: сделать unordered
     map<int, int> local_index
     ) {
     
-    if (local_index.empty()){
-        for (const Station& st : stations) local_index[st.number] = st.number;   
+    if (local_index.empty()) {
+    for (size_t i = 0; i < stations.size(); ++i)
+        local_index[i] = i;  // индекс в векторе
     }
+
     set<set<int>> seen_routes {};
     set<vector<string>> final_set;
     
@@ -450,13 +460,14 @@ void log_time(const vector<string>& messages, vector<string>& time_log) {
     time_log.push_back(ss.str());
 }
 
+// вычисление длительности маршрута 
 pair<int, vector<string>> compute_time_for_route(
     const map<int, pair<int, int>>& reverse_index,
     const vector<int>& compartments, 
     const vector<string>& fill,
     bool double_piped,
     const vector<Station>& input_station_list,
-    const vector<vector<int>>& demanded_matrix,
+    const vector<vector<double>>& demanded_matrix,
     const vector<int>& docs_fill
     ){
     double pour_time = (accumulate(compartments.begin(), compartments.end(), 0) / 1000) * 3;      // время заполнения бензовоза в депо
@@ -574,3 +585,4 @@ pair<int, vector<string>> compute_time_for_route(
 
     return {10000, {}};              // 10000 - просто большое число
 }
+

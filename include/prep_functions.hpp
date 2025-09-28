@@ -1,7 +1,6 @@
 #pragma once   // защита от двойного включения
 
 #include <vector>
-#include <optional>
 #include <string>
 #include <map>
 #include <set>
@@ -32,9 +31,9 @@ public:
     int remaining_time;
     int total_trips;
     double pour_time;
-    optional<int> FuelTankerID;
+    // optional<int> FuelTankerID;
 
-    Truck(int number, const vector<int>& compartments, optional<int> ftid);
+    Truck(int number, const vector<int>& compartments);
 
 };
 
@@ -56,7 +55,7 @@ set<vector<int>> boolify_reservoirs(const vector<vector<string>>& fillings);
 // переводит номер станции и резервуара в глобальный номер резервуара
 map<pair<int, int>, int> global_numeration(const vector<int>& lengths);
 
-
+double roundN(double val, int n);
 
 // Main
 
@@ -72,7 +71,7 @@ vector<vector<string>> get_fillings(const Truck& truck, const vector<Station>& c
 set<vector<string>> all_fillings(
     const vector<Station>& stations, 
     const Truck& truck, 
-    const vector<vector<int>>& time_to_station,
+    const vector<vector<double>>& time_to_station,
     const map<pair<int,int>,int>& gl_num,
     int H,
     int st_in_trip = 3, 
@@ -87,7 +86,7 @@ set<vector<string>> find_routes(
     const Truck& truck,
     const map<pair<int, int>, int>& gl_num,
     const map<int,int>& local_index,
-    const vector<vector<int>>& time_to_station, 
+    const vector<vector<double>>& time_to_station, 
     int current_time, 
     int st_in_trip, 
     int top_nearest,
@@ -104,6 +103,30 @@ pair<int, vector<string>> compute_time_for_route(
     const vector<string>& fill,
     bool double_piped,
     const vector<Station>& input_station_list,
-    const vector<vector<int>>& demanded_matrix,
+    const vector<vector<double>>& demanded_matrix,
     const vector<int>& docs_fill
     );
+
+
+struct VectorHash {
+    size_t operator()(const std::vector<int>& v) const {
+        size_t seed = v.size();
+        for (auto& i : v) {
+            seed ^= i + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+        }
+        return seed;
+    }
+};
+
+struct KeyHash {
+    std::size_t operator()(const std::pair<int, std::vector<int>>& k) const {
+        return std::hash<int>()(k.first) ^ VectorHash()(k.second);
+    }
+};
+
+struct KeyEqual {
+    bool operator()(const std::pair<int, std::vector<int>>& a,
+                    const std::pair<int, std::vector<int>>& b) const {
+        return a.first == b.first && a.second == b.second;
+    }
+};

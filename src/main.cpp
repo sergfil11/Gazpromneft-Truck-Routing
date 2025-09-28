@@ -1,4 +1,5 @@
 #include "prep_functions.hpp"
+#include "preprocessing.hpp"
 #include <iostream>
 #include <assert.h>
 #include <locale>
@@ -69,7 +70,7 @@ int main() {
     //     const auto& [station, res_idx] = key; // распаковка пары-ключа
     //     cout << "(" << station << "," << res_idx << ") -> " << value << '\n';
     // }
-    // Truck truck = Truck(1, {1000, 10, 1000, 1000}, 1);
+    // Truck truck = Truck(1, {1000, 10, 1000, 1000});
     // vector<Station> chosen_stations = {Station(2, 10, 15, {0, 5, 0, 3}, {100, 100, 100, 100}), Station(3, 10, 15, {1000, 5, 3000, 3}, {1001, 100, 3005, 100})};
     // vector<vector<string>> fillings = get_fillings(truck, chosen_stations, gl_num);
     // for (auto &filling : fillings) {
@@ -87,7 +88,7 @@ int main() {
     //     Station(0, 0, 2, {5, 0}, {10, 10}),
     //     Station(1, 1, 1, {3, 2}, {10, 10})
     // };
-    // Truck truck(1, {5, 5}, 1);  // два отсека по 5 единиц
+    // Truck truck(1, {5, 5});  // два отсека по 5 единиц
     // vector<vector<int>> time_to_station = {
     //     {0, 1},
     //     {1, 0}
@@ -114,38 +115,145 @@ int main() {
 
 
     // COMPUTE_TIME_FOR_ROUTE_TEST
-    map<int, pair<int,int>> reverse_index = {
-        {0, {1,0}}, {1, {1,0}}, {2, {2,0}}, {3, {3,0}}
+    // map<int, pair<int,int>> reverse_index = {
+    //     {0, {1,0}}, {1, {1,0}}, {2, {2,0}}, {3, {3,0}}
+    // };
+    // vector<int> compartments = {1000, 2000, 1500, 1200};
+    // vector<string> fill = {"0", "1", "0", "3"};  // строки как в твоей функции
+    // bool double_piped = true;
+    // vector<Station> input_station_list = {
+    //     Station(0, 5, 5, {0, 1}, {10, 10}),
+    //     Station(1, 3, 3, {1, 0}, {10, 10}),
+    //     Station(2, 4, 4, {0, 1}, {10, 10}),
+    //     Station(2, 4, 4, {0, 1}, {10, 10})
+    // };
+    // vector<vector<int>> demanded_matrix = {
+    //     {0,5,10,15},
+    //     {5,0,8,12},
+    //     {10,8,0,6},
+    //     {15,12,6,0}
+    // };
+    // vector<int> docs_fill = {3,4,5,2};
+    // pair<int, vector<string>> result = compute_time_for_route(
+    //     reverse_index,
+    //     compartments,
+    //     fill,
+    //     double_piped,
+    //     input_station_list,
+    //     demanded_matrix,
+    //     docs_fill
+    // );
+    // cout << "Минимальное время: " << result.first << " минут\n";
+    // cout << "Лог времени:\n";
+    // for (const string& s : result.second) {
+    //     cout << "  " << s << "\n";
+    // }
+
+
+
+    // PREPROCESSING_TEST
+    // параметры
+    int N = 4;              // число станций (без депо)
+    int H = 480;            // длительность смены (мин)
+    int K = 2;              // число бензовозов
+    int R1 = 3;             // число станций в маршруте (параметр) → побольше
+    int R2 = 3;             // ближайших станций для рассмотрения
+
+    // матрица времен между станциями (мин)
+    vector<vector<int>> time_matrix = {
+        {0, 10, 20, 30},
+        {10, 0, 15, 25},
+        {20, 15, 0, 12},
+        {30, 25, 12, 0}
     };
-    vector<int> compartments = {1000, 2000, 1500, 1200};
-    vector<string> fill = {"0", "1", "0", "3"};  // строки как в твоей функции
-    bool double_piped = true;
-    vector<Station> input_station_list = {
-        Station(0, 5, 5, {0, 1}, {10, 10}),
-        Station(1, 3, 3, {1, 0}, {10, 10}),
-        Station(2, 4, 4, {0, 1}, {10, 10}),
-        Station(2, 4, 4, {0, 1}, {10, 10})
+
+    // времена до/от депо (ключи "to" и "from")
+    vector<map<string,int>> depot_times(N);
+    depot_times[0] = {{"to", 5}, {"from", 5}};
+    depot_times[1] = {{"to", 8}, {"from", 8}};
+    depot_times[2] = {{"to", 6}, {"from", 6}};
+    depot_times[3] = {{"to", 12}, {"from", 12}};
+
+    // станции: уберём пустые, везде есть резервуары
+    vector<map<string, vector<int>>> stations(N);
+    stations[0] = { {"min", {100}}, {"max", {300}} };
+    stations[1] = { {"min", {50, 60}}, {"max", {200, 150}} };
+    stations[2] = { {"min", {40}}, {"max", {120}} };       // раньше была пустая, теперь норм
+    stations[3] = { {"min", {30}}, {"max", {100}} };
+
+    // грузовики
+    vector<vector<int>> trucks = {
+        {100, 100},   // truck 0
+        {50, 80}     // truck 1
     };
-    vector<vector<int>> demanded_matrix = {
-        {0,5,10,15},
-        {5,0,8,12},
-        {10,8,0,6},
-        {15,12,6,0}
-    };
-    vector<int> docs_fill = {3,4,5,2};
-    pair<int, vector<string>> result = compute_time_for_route(
-        reverse_index,
-        compartments,
-        fill,
+
+    // доступность станций для каждого грузовика (N x K)
+    vector<vector<int>> access(N, vector<int>(K, 1));
+    // оставим как есть (все станции доступны)
+
+    // возможность двух шлангов
+    vector<bool> double_piped = { true, false };
+
+    // дневной коэффициент
+    float daily_coefficient = 1.0f;
+
+    // время на документы
+    vector<int> docs_fill = { 5, 7, 4, 6 };
+
+    // H_k пустой
+    vector<float> H_k = {}; 
+
+    // кто загружен под сменщика
+    vector<bool> loading_prepared = { true, false };
+
+    // дополнительные параметры можно оставить пустыми
+    map<int, vector<string>> reservoir_to_product;
+    map<int, set<tuple<string>>> truck_to_variants;
+
+    // Вызов функции
+    tuple< 
+    map<int, vector<vector<int>>>,
+    map<pair<int, int>, int>,
+    vector<map<string, int>>, 
+    int,
+    map<pair<int, int>, int>, 
+    map<pair<int, int>, vector<string>>,
+    vector<float>
+    > result = gurobi_preprocessing(
+        N, H, K,
+        time_matrix,
+        depot_times,
+        stations,
+        trucks,
+        R1, R2,
+        access,
         double_piped,
-        input_station_list,
-        demanded_matrix,
-        docs_fill
+        daily_coefficient,
+        docs_fill,
+        H_k,
+        loading_prepared,
+        reservoir_to_product,
+        truck_to_variants
     );
-    cout << "Минимальное время: " << result.first << " минут\n";
-    cout << "Лог времени:\n";
-    for (const string& s : result.second) {
-        cout << "  " << s << "\n";
+
+    // Распаковка результата
+    auto& filling_on_route = get<0>(result);
+    auto& sigma = get<1>(result);
+    auto& reservoirs = get<2>(result);
+    int tank_count = get<3>(result);
+
+    cout << "=== Результат gurobi_preprocessing ===\n";
+    cout << "tank_count: " << tank_count << "\n";
+    cout << "filling_on_route.size(): " << filling_on_route.size() << "\n";
+
+    for (const auto& [truck, routes] : filling_on_route) {
+        cout << "Truck: " << truck << "\n";
+        for (const auto& route : routes) {   // route = vector<int>
+            cout << "  Route pattern: ";
+            for (int v : route)
+                cout << v << " ";
+            cout << "\n";
+        }
     }
 
     return 0;
