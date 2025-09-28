@@ -1,28 +1,31 @@
 {
+  "version": "2.0.0",
   "tasks": [
     {
-      "type": "cppbuild",
-      "label": "C/C++: g++.exe сборка активного файла",
-      "command": "C:\\Users\\Sergey\\msys2\\ucrt64\\bin\\g++.exe",
+      "label": "Build Gurobi Project",
+      "type": "shell",
+      "command": "cl",
       "args": [
-        "-fdiagnostics-color=always",
-        "-g",
-        "${file}",
-        "-o",
-        "${fileDirname}\\${fileBasenameNoExtension}.exe"
-      ],
-      "options": {
-        "cwd": "${fileDirname}"
-      },
-      "problemMatcher": [
-        "$gcc"
+        "/EHsc",
+        "/MD",
+        "/std:c++20",
+        "/I", "C:\\gurobi1203\\include",
+        "/I", "${workspaceFolder}\\include",
+        "src\\gurobi.cpp",
+        "src\\main.cpp",
+        "src\\prep_functions.cpp",
+        "src\\preprocessing.cpp",
+        "/link",
+        "/LIBPATH:C:\\gurobi1203\\lib",
+        "gurobi_c++.lib",
+        "gurobi120.lib",
+        "/OUT:prog.exe"
       ],
       "group": {
         "kind": "build",
         "isDefault": true
       },
-      "detail": "Задача создана отладчиком."
+      "problemMatcher": ["$msCompile"],
     }
-  ],
-  "version": "2.0.0"
+  ]
 }

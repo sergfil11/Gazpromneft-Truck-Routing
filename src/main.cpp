@@ -3,6 +3,8 @@
 #include <iostream>
 #include <assert.h>
 #include <locale>
+#include "gurobi_c++.h"
+    
 
 
 using namespace std;
@@ -255,6 +257,15 @@ int main() {
             cout << "\n";
         }
     }
+    
+    try {
+        GRBEnv env = GRBEnv(true);
+        env.start();
+        std::cout << "Gurobi C++ API работает!" << std::endl;
+    } catch (GRBException &e) {
+        std::cout << "Ошибка: " << e.getMessage() << std::endl;
+    }
+    
 
     return 0;
 };

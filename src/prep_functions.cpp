@@ -102,7 +102,7 @@ pair<vector<int>, vector<vector<vector<string>>>> dp_max_unique_digits_all_masks
     // находим максимальное число использованных битов
     int max_bits = 0;
     for (const auto& [mask, _] : dp) {
-        int bits = __builtin_popcount(mask);      // считаем число битиков - это и есть число использованных отсеков
+        int bits = __popcnt(mask);      // считаем число битиков - это и есть число использованных отсеков
         if (bits > max_bits) max_bits = bits;     // и если что, обновляем максимум
     }
     
@@ -118,7 +118,7 @@ pair<vector<int>, vector<vector<vector<string>>>> dp_max_unique_digits_all_masks
     vector<vector<vector<string>>> best_selections;
 
     for (const auto& [mask, selections] : dp) {
-        if (__builtin_popcount(mask) == max_bits) {
+        if (__popcnt(mask) == max_bits) {
             best_masks.push_back(mask);
             best_selections.push_back(selections);
         }
@@ -310,14 +310,14 @@ set<vector<string>> find_routes(
     Station last_station = current_route.back();    // последняя станция маршрута
     int last_station_local = local_index.at(last_station.number);   // номер этой станции среди нашего подмножества доступных станций
 
-    vector<pair<int,int>> res;          // вектор пар (время, номер станции)
+    vector<pair<double,int>> res;          // вектор пар (время, номер станции)
     for (int i = 0; i < (int)time_to_station[last_station_local].size(); i++) {
         res.emplace_back(time_to_station[last_station_local][i], i);                // в конце вектора создаём пару (время, номер станции)
     }
 
     // 1.Сортировка по времени
     sort(res.begin(), res.end(),                                // сортируем от начала до конца по правилу сравнения пар - если первый элемент больше, то это бОльшая пара
-         [](const pair<int,int>& a, const pair<int,int>& b) {
+         [](const pair<double,int>& a, const pair<double,int>& b) {
              return a.first < b.first;
          });
 
@@ -328,7 +328,7 @@ set<vector<string>> find_routes(
 
     // 3.Обрезаем те, что не подходят по времени
     auto it = find_if(res.begin(), res.end(),
-    [&](const pair<int,int>& p){
+    [&](const pair<double,int>& p){
         return current_time + p.first + stations[p.second].time_to_depot > H;
     });
     res.erase(it, res.end());
