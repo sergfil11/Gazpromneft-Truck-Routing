@@ -1,9 +1,11 @@
 #include "prep_functions.hpp"
 #include "preprocessing.hpp"
+#include "gurobi.hpp"
 #include <iostream>
 #include <assert.h>
 #include <locale>
 #include "gurobi_c++.h"
+ 
     
 
 
@@ -151,7 +153,14 @@ int main() {
     //     cout << "  " << s << "\n";
     // }
 
-
+    // GRB_TEST 
+    // try {
+    //     GRBEnv env = GRBEnv(true);
+    //     env.start();
+    //     std::cout << "Gurobi C++ API работает!" << std::endl;
+    // } catch (GRBException &e) {
+    //     std::cout << "Ошибка: " << e.getMessage() << std::endl;
+    // }
 
     // PREPROCESSING_TEST
     // параметры
@@ -203,7 +212,7 @@ int main() {
     vector<int> docs_fill = { 5, 7, 4, 6 };
 
     // H_k пустой
-    vector<float> H_k = {}; 
+    vector<double> H_k = {}; 
 
     // кто загружен под сменщика
     vector<bool> loading_prepared = { true, false };
@@ -220,7 +229,7 @@ int main() {
     int,
     map<pair<int, int>, int>, 
     map<pair<int, int>, vector<string>>,
-    vector<float>
+    vector<double>
     > result = gurobi_preprocessing(
         N, H, K,
         time_matrix,
@@ -239,10 +248,13 @@ int main() {
     );
 
     // Распаковка результата
-    auto& filling_on_route = get<0>(result);
-    auto& sigma = get<1>(result);
-    auto& reservoirs = get<2>(result);
-    int tank_count = get<3>(result);
+    auto& filling_on_route = std::get<0>(result);
+    auto& sigma            = std::get<1>(result);
+    auto& reservoirs       = std::get<2>(result);
+    int tank_count         = std::get<3>(result);
+    auto& gl_num           = std::get<4>(result);
+    auto& log              = std::get<5>(result);
+    auto& H_k_out          = std::get<6>(result);
 
     cout << "=== Результат gurobi_preprocessing ===\n";
     cout << "tank_count: " << tank_count << "\n";
@@ -258,13 +270,22 @@ int main() {
         }
     }
     
-    try {
-        GRBEnv env = GRBEnv(true);
-        env.start();
-        std::cout << "Gurobi C++ API работает!" << std::endl;
-    } catch (GRBException &e) {
-        std::cout << "Ошибка: " << e.getMessage() << std::endl;
-    }
+    vector<int> owning(K, 1);
+
+    GRBModel model = gurobi_covering(
+        filling_on_route,
+        sigma,
+        reservoirs,
+        tank_count,
+        720,      // H
+        K,
+        900,      // timelimit
+        gl_num,
+        H_k_out,
+        owning
+    );
+
+    gurobi_results(model, y, g, filling_on_route, gl_num, log, sigma);
     
 
     return 0;

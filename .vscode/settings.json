@@ -56,7 +56,8 @@
     "streambuf": "cpp",
     "text_encoding": "cpp",
     "typeinfo": "cpp",
-    "variant": "cpp"
+    "variant": "cpp",
+    "locale": "cpp"
   },
   "C_Cpp.intelliSenseEngine": "default",
   "C_Cpp.autocomplete": "default",
