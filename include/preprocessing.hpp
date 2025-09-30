@@ -10,7 +10,7 @@ using namespace std;
 
 tuple< 
     map<int, vector<vector<int>>>,
-    map<pair<int, int>, int>,
+    map<pair<int, int>, double>,
     vector<map<string, int>>, 
     int,
     map<pair<int, int>, int>, 

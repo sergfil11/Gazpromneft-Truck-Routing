@@ -1,11 +1,12 @@
 #include "prep_functions.hpp"
 #include "preprocessing.hpp"
 #include "gurobi.hpp"
+#include "parsing.hpp"
 #include <iostream>
 #include <assert.h>
 #include <locale>
 #include "gurobi_c++.h"
- 
+
     
 
 
@@ -224,7 +225,7 @@ int main() {
     // Вызов функции
     tuple< 
     map<int, vector<vector<int>>>,
-    map<pair<int, int>, int>,
+    map<pair<int, int>, double>,
     vector<map<string, int>>, 
     int,
     map<pair<int, int>, int>, 
@@ -261,18 +262,22 @@ int main() {
     cout << "filling_on_route.size(): " << filling_on_route.size() << "\n";
 
     for (const auto& [truck, routes] : filling_on_route) {
-        cout << "Truck: " << truck << "\n";
+        cout << "Бензовоз " << truck << " используется, выбранные маршруты:\n\n";
+        int route_num = 0;
         for (const auto& route : routes) {   // route = vector<int>
-            cout << "  Route pattern: ";
-            for (int v : route)
-                cout << v << " ";
+            cout << "  Маршрут №" << route_num << "\n";
+            for (size_t station = 0; station < route.size(); ++station) {
+                cout << "    Станция №" << station << ", заполненные резервуары №: ";
+                cout << route[station] << "\n";   // если у тебя vector<int>, здесь число заполненных резервуаров
+            }
+            route_num++;
             cout << "\n";
         }
     }
-    
     vector<int> owning(K, 1);
 
-    GRBModel model = gurobi_covering(
+
+    auto res = gurobi_covering(
         filling_on_route,
         sigma,
         reservoirs,
@@ -285,8 +290,17 @@ int main() {
         owning
     );
 
-    gurobi_results(model, y, g, filling_on_route, gl_num, log, sigma);
+    // GRBModel& model = ;
+    // auto& y = ;
+    // auto& g = ;
+
+    gurobi_results(*res->model, res->y, res->g, filling_on_route, gl_num, log, sigma);
     
+
+    auto data = load_real_data("C:\\Users\\Sergey\\Desktop\\Diplom\\main\\project_cpp\\instances\\16_depot");
+
+    cout << "=== Результат load_real_data ===\n";
+    print_input(data);
 
     return 0;
 };

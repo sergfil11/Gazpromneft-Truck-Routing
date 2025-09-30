@@ -1,22 +1,18 @@
-#include "gurobi_c++.h"
-#include <vector>
-#include <map>
-#include <tuple>
 #include <iostream>
-#include <string>
 #include <algorithm>
 #include <memory>
+#include "gurobi.hpp"
 using namespace std;
 
-struct GurobiCoveringResult {
-    unique_ptr<GRBModel> model;
-    vector<GRBVar> y;
-    map<pair<int,int>, GRBVar> g;
-};
+// struct GurobiCoveringResult {
+//     unique_ptr<GRBModel> model;
+//     vector<GRBVar> y;
+//     map<pair<int,int>, GRBVar> g;
+// };
 
 unique_ptr<GurobiCoveringResult> gurobi_covering(
     const map<int, vector<vector<int>>>& filling_on_route,  // маршруты
-    const map<pair<int,int>, int>& sigma,                   // время на маршрут
+    const map<pair<int,int>, double>& sigma,                // время на маршрут
     const vector<map<string,int>>& reservoirs,              // {min,max}
     int tank_count,
     int H,
@@ -26,123 +22,99 @@ unique_ptr<GurobiCoveringResult> gurobi_covering(
     const vector<double>& H_k,
     vector<int> owning
 ) {
-    GRBEnv env = GRBEnv(true);
-    env.set(GRB_IntParam_OutputFlag, 0);   // отключаем вывод
-    env.start();
+    auto env = make_unique<GRBEnv>(true);
+    env->set(GRB_IntParam_OutputFlag, 0);
+    env->start();
+    auto result = std::make_unique<GurobiCoveringResult>();
+    result->model = std::make_unique<GRBModel>(*env);
+    // GRBEnv env = GRBEnv(true);
+    // env.set(GRB_IntParam_OutputFlag, 0);   // отключаем вывод
+    // env.start();
 
-    GRBModel model = GRBModel(env);
-    model.set(GRB_DoubleParam_TimeLimit, timelimit);
+    // result->model = make_unique<GRBModel>(GRBModel(env));
+    result->model->set(GRB_DoubleParam_TimeLimit, timelimit);
 
-    // owning = [1 если владеем, иначе 1000]
     if (owning.empty()) {
-      owning = vector<int>(K, 1);
-    }
-    else {
+        owning = vector<int>(K, 1);
+    } else {
         for (int k = 0; k < K; ++k) {
             owning[k] = owning[k]*1000;
         }
     }
-    
 
     // b[(tank,k,r)]
     map<tuple<int,int,int>, int> b;
     for (int k = 0; k < K; ++k) {
-        if (filling_on_route.count(k) == 0) {
-          continue;
-        }  
-        const vector<vector<int>>& routes = filling_on_route.at(k);
-
+        if (filling_on_route.count(k) == 0) continue;
+        const auto& routes = filling_on_route.at(k);
         for (int r = 0; r < (int)routes.size(); ++r) {
-          // Перебираем баки
-          for (int tank = 0; tank < tank_count; ++tank) {
-              int value = (routes[r][tank] == 1 ? 1 : 0);
-              b[make_tuple(tank, k, r)] = value;
-          }
-      }
+            for (int tank = 0; tank < tank_count; ++tank) {
+                b[make_tuple(tank,k,r)] = (routes[r][tank] == 1 ? 1 : 0);
+            }
+        }
     }
 
     // Переменные y[k]
-    vector<GRBVar> y(K);
     for (int k = 0; k < K; ++k) {
-        y[k] = model.addVar(0.0, 1.0, 0.0, GRB_BINARY, "y_"+to_string(k));
+      result->y[k] = result->model->addVar(0.0, 1.0, 0.0, GRB_BINARY, "y_"+std::to_string(k));
     }
 
     // Переменные g[k,r]
-    map<pair<int,int>, GRBVar> g;
     for (int k = 0; k < K; ++k) {
-        if (filling_on_route.count(k) == 0) {
-            continue;
-        }
-        const vector<vector<int>>& routes = filling_on_route.at(k);
-
+        if (filling_on_route.count(k) == 0) continue;
+        const auto& routes = filling_on_route.at(k);
         for (int r = 0; r < (int)routes.size(); ++r) {
             string var_name = "g_" + to_string(k) + "_" + to_string(r);
-            g[make_pair(k, r)] = model.addVar(0.0, 1.0, 0.0, GRB_BINARY, var_name);
+            result->g[make_pair(k,r)] = result->model->addVar(0.0, 1.0, 0.0, GRB_BINARY, var_name);
         }
     }
 
-    // Целевая функция: sum y[k] * owning[k]
+    // Целевая функция
     GRBLinExpr obj = 0;
-    for (int k = 0; k < K; ++k) {
-        obj += owning[k] * y[k];
-    }
-    model.setObjective(obj, GRB_MINIMIZE);
+    for (int k = 0; k < K; ++k) obj += owning[k] * result->y[k];
+    result->model->setObjective(obj, GRB_MINIMIZE);
 
-    // (4.2) резервуары с положительным demand
+    // Ограничения (4.2)–(4.5)
     for (int i = 0; i < tank_count; ++i) {
-      if (reservoirs[i].at("min") > 0) {
-          GRBLinExpr lhs = 0;
-          for (int k = 0; k < K; ++k) {
-              if (filling_on_route.count(k) == 0) continue;
-              const vector<vector<int>>& routes = filling_on_route.at(k);
-              for (int r = 0; r < (int)routes.size(); ++r) {
-                  lhs += b[{i, k, r}] * g[{k, r}];
-              }
-          }
-          model.addConstr(lhs == 1, "Reservoir_" + to_string(i));
-      }
+        if (reservoirs[i].at("min") > 0) {
+            GRBLinExpr lhs = 0;
+            for (int k = 0; k < K; ++k) {
+                if (filling_on_route.count(k) == 0) continue;
+                const auto& routes = filling_on_route.at(k);
+                for (int r = 0; r < (int)routes.size(); ++r) lhs += b[{i,k,r}] * result->g[{k,r}];
+            }
+            result->model->addConstr(lhs == 1, "Reservoir_" + to_string(i));
+        } else if (reservoirs[i].at("min") <= 0.1) {
+            GRBLinExpr lhs = 0;
+            for (int k = 0; k < K; ++k) {
+                if (filling_on_route.count(k) == 0) continue;
+                const auto& routes = filling_on_route.at(k);
+                for (int r = 0; r < (int)routes.size(); ++r) lhs += b[{i,k,r}] * result->g[{k,r}];
+            }
+            result->model->addConstr(lhs <= 1, "Reservoir_" + to_string(i));
+        }
     }
 
-    // (4.3) резервуары с нулевым demand (<=0.1)
-    for (int i = 0; i < tank_count; ++i) {
-      if (reservoirs[i].at("min") <= 0.1) {
-          GRBLinExpr lhs = 0;
-          for (int k = 0; k < K; ++k) {
-              if (filling_on_route.count(k) == 0) continue;
-              const vector<vector<int>>& routes = filling_on_route.at(k);
-              for (int r = 0; r < (int)routes.size(); ++r) {
-                  lhs += b[{i, k, r}] * g[{k, r}];
-              }
-          }
-          model.addConstr(lhs <= 1, "Reservoir_" + to_string(i));
-      }
-    }
-
-    // (4.4) g[k,r] <= y[k]
     for (int k = 0; k < K; ++k) {
-      if (filling_on_route.count(k) == 0) continue;
-      const vector<vector<int>>& routes = filling_on_route.at(k);
-      for (int r = 0; r < (int)routes.size(); ++r) {
-          string cname = "Link_" + to_string(k) + "_" + to_string(r);
-          model.addConstr(g[{k, r}] <= y[k], cname);
-      }
+        if (filling_on_route.count(k) == 0) continue;
+        const auto& routes = filling_on_route.at(k);
+        for (int r = 0; r < (int)routes.size(); ++r) {
+            result->model->addConstr(result->g[{k,r}] <= result->y[k], "Link_" + to_string(k) + "_" + to_string(r));
+        }
     }
 
-    // (4.5) ограничение по смене
-    for (int k = 0; k < K; ++k) {
-      if (H_k.empty()) continue;
-      if (filling_on_route.count(k) == 0) continue;
-
-      GRBLinExpr lhs = 0;
-      const vector<vector<int>>& routes = filling_on_route.at(k);
-      for (int r = 0; r < (int)routes.size(); ++r) {
-          lhs += sigma.at({k, r}) * g[{k, r}];
-      }
-      model.addConstr(lhs <= H_k[k], "Shift_" + to_string(k));
+    if (!H_k.empty()) {
+        for (int k = 0; k < K; ++k) {
+            if (filling_on_route.count(k) == 0) continue;
+            GRBLinExpr lhs = 0;
+            const auto& routes = filling_on_route.at(k);
+            for (int r = 0; r < (int)routes.size(); ++r) lhs += sigma.at({k,r}) * result->g[{k,r}];
+            result->model->addConstr(lhs <= H_k[k], "Shift_" + to_string(k));
+        }
     }
 
-    model.optimize();
-    return make_tuple(model, y, g);
+    result->model->optimize();
+    return result;
 }
 
 
@@ -153,7 +125,7 @@ void gurobi_results(
     const map<int, vector<vector<int>>>& filling_on_route,   // грузовику -> список маршрутов -> список заполнений
     const map<pair<int,int>, int>& gl_num,                   // (станция, резервуар) -> глобальный номер
     const map<pair<int,int>, vector<string>>& log,           // (k,r) -> лог действий
-    const map<pair<int,int>, double>& sigma                  // (k,r) -> время маршрута
+    const map<pair<int,int>, double>& sigma                     // (k,r) -> время маршрута
 ) {
     int status = model.get(GRB_IntAttr_Status);
 

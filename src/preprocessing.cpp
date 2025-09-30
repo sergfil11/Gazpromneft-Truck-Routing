@@ -33,7 +33,7 @@
 
 tuple< 
     map<int, vector<vector<int>>>,
-    map<pair<int, int>, int>,
+    map<pair<int, int>, double>,
     vector<map<string, int>>, 
     int,
     map<pair<int, int>, int>, 
@@ -220,7 +220,7 @@ gurobi_preprocessing(
     reverse_global[kv.second] = kv.first;
   }
   
-  map<pair<int,int>, int> sigma;
+  map<pair<int,int>, double> sigma;
   map<pair<int,int>, vector<string>> timelogs;
   for (int truck = 0; truck < K; ++truck) {
     if (filling_on_route.count(truck) > 0) {
@@ -266,7 +266,7 @@ gurobi_preprocessing(
 
   //  возможно надо сначала создать ключи а потом добавлять
   map<int, vector<vector<int>>> new_filling_on_route;  // для каждого бензовоза пустой список маршрутов
-  map<pair<int,int>, int> new_sigma;
+  map<pair<int,int>, double> new_sigma;
   map<pair<int,int>, vector<string>> new_log;
 
   // перезаписываем сигму

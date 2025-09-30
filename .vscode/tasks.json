@@ -15,6 +15,7 @@
         "src\\main.cpp",
         "src\\prep_functions.cpp",
         "src\\preprocessing.cpp",
+        "src\\parsing.cpp",
         "/link",
         "/LIBPATH:C:\\gurobi1203\\lib",
         "gurobi_c++.lib",
