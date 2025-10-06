@@ -34,7 +34,7 @@
 tuple< 
     map<int, vector<vector<int>>>,
     map<pair<int, int>, double>,
-    vector<map<string, int>>, 
+    vector<map<string, double>>, 
     int,
     map<pair<int, int>, int>, 
     map<pair<int, int>, vector<string>>,
@@ -44,18 +44,18 @@ gurobi_preprocessing(
     int N,
     int H,
     int K,
-    const vector<vector<int>>& time_matrix,
-    const vector<map<string, int>>& depot_times,
-    const vector<map<string, vector<int>>>& stations,
-    const vector<vector<int>>& trucks,
+    const vector<vector<double>>& time_matrix,
+    const vector<map<string, double>>& depot_times,
+    const vector<map<string, vector<double>>>& stations,
+    const vector<vector<double>>& trucks,
     int R1,
     int R2,
     vector<vector<int>>& access,
     vector<bool>& double_piped,
     double daily_coefficient,
-    vector<int>& docs_fill,
+    vector<double>& docs_fill,
     vector<double>& H_k,
-    vector<bool>& loading_prepared,
+    vector<int>& loading_prepared,
     const map<int, vector<string>>& reservoir_to_product,
     const map<int, set<tuple<string>>>& truck_to_variants
   ){
@@ -68,14 +68,14 @@ gurobi_preprocessing(
   if (double_piped.empty())
       double_piped = vector<bool> (K, false); 
   if (docs_fill.empty())
-      docs_fill = vector<int> (N, 2400);
+      docs_fill = vector<double> (N, 2400);
   if (loading_prepared.empty())
-      loading_prepared = vector<bool> (K, false);
+      loading_prepared = vector<int> (K, 0);
 
   // если загружен под сменщика, увеличиваем длину смены на время заполнения в депо
   for (int truck = 0; truck < K; ++truck) {
-    if (loading_prepared[truck]) {
-        int sum_truck = accumulate(trucks[truck].begin(), trucks[truck].end(), 0);
+    if (loading_prepared[truck] == 1) {
+        int sum_truck = accumulate(trucks[truck].begin(), trucks[truck].end(), 0.0);
         H_k[truck] += (sum_truck / 1000.0) * 3;
     }
   }
@@ -107,8 +107,8 @@ gurobi_preprocessing(
   }
   
   vector<vector<int>> cut_access;
-  vector<map<string, vector<int>>> demanded_st;
-  vector<map<string, int>> demanded_depot_times;
+  vector<map<string, vector<double>>> demanded_st;
+  vector<map<string, double>> demanded_depot_times;
 
   // "срезаем" пустые станции в векторах access и stations
   for (int idx : demanded_idx) {
@@ -142,7 +142,7 @@ gurobi_preprocessing(
    
  set<pair<int, vector<string>>> result = {};
  for (int idx = 0; idx < trucks.size(); ++idx) {
-      vector <int> truck = trucks[idx];
+      vector <double> truck = trucks[idx];
       // станцию и матрицу времени нужно обрезать в случае ограничений a_ik
 
       // допустимые станции для бензовоза
@@ -204,9 +204,9 @@ gurobi_preprocessing(
   }
 
   // перевод демандов станций в деманды резервуаров (проходимся по всем станциям и добавляем все их резервуары в список)
-  vector<map<string, int>> reservoirs = {};        
+  vector<map<string, double>> reservoirs = {};        
   for (int i = 0; i < demanded_st.size(); ++i){
-    map<string, vector<int>> st = demanded_st[i];
+    map<string, vector<double>> st = demanded_st[i];
     for (int j = 0; j < st["min"].size(); ++j){
         reservoirs.push_back({{"min", st["min"][j]}, {"max", st["max"][j]}});
     }   
@@ -242,7 +242,7 @@ gurobi_preprocessing(
   }
 
   // по паре (номер бензовоза, паттерн заполнения) возвращаем маршрут с минимальным временем, соответствующий этому паттерну (его время, заполнение и лог)
-  map<pair<int, vector<int>>, tuple<int, vector<string>, vector<string>>> best_by_pattern = {};         
+  map<pair<int, vector<int>>, tuple<double, vector<string>, vector<string>>> best_by_pattern = {};         
   for (int truck = 0; truck < K; ++truck) {                                                             
     if (filling_on_route.count(truck) > 0) {
         for (int route_idx = 0; route_idx < filling_on_route.at(truck).size(); ++route_idx) {
@@ -253,7 +253,7 @@ gurobi_preprocessing(
                 pattern.push_back(fill[i].empty() ? 0 : 1);
             }
 
-            int r_time = sigma[{truck, route_idx}];
+            double r_time = sigma[{truck, route_idx}];
             vector<string> r_log = timelogs[{truck, route_idx}];
             pair<int, vector<int>> key = {truck, pattern};
 
@@ -284,9 +284,9 @@ gurobi_preprocessing(
   for (auto& [truck, routes] : new_filling_on_route)
       total_routes += routes.size();
 
-  cout << "Маршрутов:" << total_routes << endl;
-  cout << "Сигм:" << new_sigma.size() << endl;
-  cout << "Лог:" << new_log.size() << endl;
+//   cout << "Маршрутов:" << total_routes << endl;
+//   cout << "Сигм:" << new_sigma.size() << endl;
+//   cout << "Лог:" << new_log.size() << endl;
 
   t2 = chrono::system_clock::now();
   cout << "Время вычисления длительностей:" << roundN(chrono::duration<double>(t2 - t1).count(), 3) << " сек." << endl;

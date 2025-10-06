@@ -57,7 +57,14 @@
     "text_encoding": "cpp",
     "typeinfo": "cpp",
     "variant": "cpp",
-    "locale": "cpp"
+    "locale": "cpp",
+    "any": "cpp",
+    "codecvt": "cpp",
+    "cstring": "cpp",
+    "forward_list": "cpp",
+    "fstream": "cpp",
+    "ranges": "cpp",
+    "valarray": "cpp"
   },
   "C_Cpp.intelliSenseEngine": "default",
   "C_Cpp.autocomplete": "default",

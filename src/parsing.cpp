@@ -34,7 +34,7 @@ RealData load_real_data(const string& name) {
     result.time_matrix = data["time_matrix"].get<vector<vector<double>>>();
     result.depot_times = data["depot_times"].get<vector<map<string, double>>>();
     result.stations = data["stations"].get<vector<map<string, vector<double>>>>();
-    result.trucks = data["trucks"].get<vector<vector<int>>>();
+    result.trucks = data["trucks"].get<vector<vector<double>>>();
     result.access = data["access"].get<vector<vector<int>>>();
     result.dual_piped = data["dual_piped"].get<vector<bool>>();
     result.daily_coefficient = data["daily_coefficient"];
@@ -106,5 +106,5 @@ void print_input(const RealData& d) {
 
     cout << "\nOwning:\n";
     for (auto v : d.owning) cout << v << " ";
-    cout << "\n";
+    cout << "\n\n";
 }

@@ -12,7 +12,7 @@ struct RealData {
     vector<vector<double>> time_matrix;
     vector<map<string, double>> depot_times;
     vector<map<string, vector<double>>> stations;
-    vector<vector<int>> trucks;
+    vector<vector<double>> trucks;
     vector<vector<int>> access;
     vector<bool> dual_piped;
     double daily_coefficient;

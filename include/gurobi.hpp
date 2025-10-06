@@ -27,7 +27,7 @@ void gurobi_results(
 unique_ptr<GurobiCoveringResult> gurobi_covering(
     const map<int, vector<vector<int>>>& filling_on_route,  // маршруты
     const map<pair<int,int>, double>& sigma,                // время на маршрут
-    const vector<map<string,int>>& reservoirs,              // {min,max}
+    const vector<map<string, double>>& reservoirs,              // {min,max}
     int tank_count,
     int H = 720,
     int K = 20,

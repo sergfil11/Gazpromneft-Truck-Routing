@@ -10,30 +10,18 @@ using namespace std;
 
 // Классы Truck и Station для дальнейшего использования в препроцессинге
 
-Station::Station(int number, int time_to_depot, int time_from_depot,
-            const vector<int>& demand, const vector<int>& remaining_spaces) :
+Station::Station(int number, double time_to_depot, double time_from_depot,
+            const vector<double>& demand, const vector<double>& remaining_spaces) :
   number(number),
   time_to_depot(time_to_depot),
   time_from_depot(time_from_depot),
   demand(demand),
-  remaining_spaces(remaining_spaces),
-  demanded_res(),
-  filled_values(demand.size(), 0)               // инициализация нулями
-{
-for (int i = 0; i < demand.size(); i++) {       // проходим по запросам резервуаров станции и отмечаем номера тех, у которых ненулевой запрос
-      if (demand[i] > 0) {
-          demanded_res.push_back(i);
-      }
-  }
-};
+  remaining_spaces(remaining_spaces){};
 
 
-Truck::Truck(int number, const vector<int>& compartments): 
+Truck::Truck(int number, const vector<double>& compartments): 
   number(number), 
-  compartments(compartments),
-  remaining_time(12*60),
-  total_trips(0),
-  pour_time((accumulate(compartments.begin(), compartments.end(), 0) / 1000) * 3) {};
+  compartments(compartments){};
 
 
 // Функции для работы с маской внутри алгоритма динамического программирования
@@ -132,9 +120,9 @@ pair<vector<int>, vector<vector<vector<string>>>> dp_max_unique_digits_all_masks
 vector<vector<int>> combinations(int n, int k) {
     vector<vector<int>> result;
 
-    // маска: k единиц, потом (n-k) нулей
+    // маска: (n - k) нулей, потом k единиц
     vector<bool> mask(n);
-    fill(mask.begin(), mask.begin() + k, true);     // заполняем первые k True-шками
+    fill(mask.end() - k, mask.end(), true);  // 000...111
 
     do {                        // берём максимальную маску и двигаемся назад, перебирая все размещения 
         vector<int> comb;
@@ -142,7 +130,7 @@ vector<vector<int>> combinations(int n, int k) {
             if (mask[i]) comb.push_back(i);             // по маске берём индексы
         }
         result.push_back(comb);
-    } while (prev_permutation(mask.begin(), mask.end()));
+    } while (next_permutation(mask.begin(), mask.end()));
 
     return result;
 }
@@ -151,13 +139,13 @@ vector<vector<int>> combinations(int n, int k) {
 
 // функция, перебирающая все комбинации отсеков, чтобы узнать, какими комбинациями заполняются резервуары
 // по завершении вызывает алгоритм ДП
-vector<vector<string>> possible_filling(const vector<int>& compartments, const vector<int>& mins, const vector<int>& maxs) {
+vector<vector<string>> possible_filling(const vector<double>& compartments, const vector<double>& mins, const vector<double>& maxs) {
     map<int, vector<string>> possible_combinations;
     vector<vector<int>> result;
 
     for (int el_num = 1; el_num <= compartments.size(); el_num++) {      // число отсеков в комбинации
          for (auto comb : combinations(compartments.size(), el_num)) {     // перебираем комбинации с el_num числом отсеков
-            int val = 0;
+            double val = 0;
             for (int i : comb) {            // суммарная вместимость отсеков комбинации
                 val += compartments[i];
             }
@@ -215,7 +203,7 @@ map<pair<int, int>, int> global_numeration(const vector<int>& lengths){
 
 // Возвращает заполнения для выбранного грузовика и станций (в глобальной нумерации) 
 vector<vector<string>> get_fillings(const Truck& truck, const vector<Station>& chosen_stations, const map<pair<int, int>, int>& gl_num){
-    vector<int> mins, maxs;
+    vector<double> mins, maxs;
     for (Station st : chosen_stations){                                 // добавляем резервуары из станций, аналог extend
         mins.insert(mins.end(), st.demand.begin(), st.demand.end());
         maxs.insert(maxs.end(), st.remaining_spaces.begin(), st.remaining_spaces.end());
@@ -286,20 +274,20 @@ set<vector<string>> find_routes(
         }
         seen_routes.insert(route_key);      // если ещё не видели, добавляем
     
-        cout << "route: [";
-        for (size_t i = 0; i < current_route.size(); ++i) {
-            cout << current_route[i].number;
-            if (i + 1 < current_route.size()) cout << ", ";
-        }
-        cout << "], curr_time: " << current_time << endl;
+        // cout << "route: [";
+        // for (size_t i = 0; i < current_route.size(); ++i) {
+        //     cout << current_route[i].number;
+        //     if (i + 1 < current_route.size()) cout << ", ";
+        // }
+        // cout << "], curr_time: " << current_time << endl;
         
         vector<vector<string>> fillings = get_fillings(truck, current_route, gl_num);
 
-        if (fillings.empty()) {
-            cout << "⚠️ Нет заполнений для маршрута: ";
-            for (Station s : current_route) cout << s.number << " ";
-            cout << endl;
-        }
+        // if (fillings.empty()) {
+        //     cout << "⚠️ Нет заполнений для маршрута: ";
+        //     for (Station s : current_route) cout << s.number << " ";
+        //     cout << endl;
+        // }
         
         if (fillings.empty()) return set<vector<string>> {}; // заполнения не нашлись        
         set<vector<string>> s(fillings.begin(), fillings.end());  // возвращаем множество заполнений 
@@ -402,7 +390,7 @@ set<vector<string>> all_fillings(              // TODO: сделать unordered
     
     for (const Station& station : stations){
         vector<Station> initial_route = {station};  
-        int start_time = station.time_from_depot + truck.pour_time;
+        int start_time = station.time_from_depot + (accumulate(truck.compartments.begin(), truck.compartments.end(), 0.0) / 1000.0) * 3;        // pour_time
         set<vector<string>> tmp = find_routes(initial_route, stations, seen_routes, truck, gl_num, local_index, time_to_station, start_time, st_in_trip, top_nearest, H);
         final_set.insert(tmp.begin(), tmp.end());
     }
@@ -412,12 +400,12 @@ set<vector<string>> all_fillings(              // TODO: сделать unordered
 
 
 // Ищет оптимальное распределение времён на 2 работы полным перебором
-int two_pipes_opt(const vector<int>& fill_times){
+double two_pipes_opt(const vector<double>& fill_times){
     int n = fill_times.size();
     if (n == 1) return fill_times[0];
     vector<int> idxs(n);
     iota(idxs.begin(), idxs.end(), 0);  // [0,1,2,...,n-1]
-    int best = INT_MAX;
+    double best = INT_MAX;
 
     // vector<bool> in_comb(n, false);
     // for (int i : comb) in_comb[i] = true;
@@ -431,7 +419,7 @@ int two_pipes_opt(const vector<int>& fill_times){
     for (int k = 0; k <= n/2; k++){             
         auto combs = combinations(n, k);    // перебираем комбинации размера k
         for (auto &comb : combs) {
-            int t1 = 0, t2 = 0;
+            double t1 = 0, t2 = 0;
             for (int i = 0, j = 0; i < n; i++) {                // проходим по всем временам и создаём две суммы
                 if (j < (int)comb.size() && comb[j] == i) {
                     t1 += fill_times[i];                        // если в комбинации, то в первую сумму
@@ -448,7 +436,7 @@ int two_pipes_opt(const vector<int>& fill_times){
 
 double roundN(double val, int n) {
     double factor = pow(10, n);
-    return round(val * factor) / factor;
+    return round(val * factor) / (double)factor;
 }
 
 
@@ -461,16 +449,16 @@ void log_time(const vector<string>& messages, vector<string>& time_log) {
 }
 
 // вычисление длительности маршрута 
-pair<int, vector<string>> compute_time_for_route(
+pair<double, vector<string>> compute_time_for_route(
     const map<int, pair<int, int>>& reverse_index,
-    const vector<int>& compartments, 
+    const vector<double>& compartments, 
     const vector<string>& fill,
     bool double_piped,
     const vector<Station>& input_station_list,
     const vector<vector<double>>& demanded_matrix,
-    const vector<int>& docs_fill
+    const vector<double>& docs_fill
     ){
-    double pour_time = (accumulate(compartments.begin(), compartments.end(), 0) / 1000) * 3;      // время заполнения бензовоза в депо
+    double pour_time = (accumulate(compartments.begin(), compartments.end(), 0.0) / 1000.0) * 3;      // время заполнения бензовоза в депо
     
     vector<int> idx {};
     for (int i = 0; i < fill.size(); i++){
@@ -510,7 +498,7 @@ pair<int, vector<string>> compute_time_for_route(
         permutations.push_back(ordered_st);  // сохраняем текущую перестановку
     } while (next_permutation(ordered_st.begin(), ordered_st.end()));
 
-    vector<int> times{};
+    vector<double> times{};
     vector<vector<string>> timelogs {};
 
     for (const vector<int>& perm : permutations) {
@@ -519,7 +507,7 @@ pair<int, vector<string>> compute_time_for_route(
             continue;
         }
         vector<string> time_log {};
-        int time = 0;
+        double time = 0;
 
         // заполнение документов на каждой из станций
         for (int stn_n : ordered_st) {
@@ -535,27 +523,27 @@ pair<int, vector<string>> compute_time_for_route(
         else {      // двушланговый, пытаемся быстрее разгрузить
             for (int st : perm) {
                 if (station_comps[st].size() > 1) {   // если на станции выгружается больше одного отсека
-                    vector<int> reservoir_fill_values {}; 
+                    vector<double> reservoir_fill_values {}; 
                     for (const string& string_of_comps : station_resevoirs[st]){   // беру строчки - комбинации отсеков для каждого резервуара
-                        int local_sum = 0;
+                        double local_sum = 0;
                         for (char comp_number : string_of_comps) {                          // итерируюсь по каждой цифре - номеру отсека
-                            local_sum += compartments[int(comp_number - '0')] / 1000 * 3;
-                            reservoir_fill_values.push_back(local_sum);
+                            local_sum += compartments[int(comp_number - '0')] / 1000.0 * 3;
                         }
+                        reservoir_fill_values.push_back(local_sum);
                     }
-                    int optimal_filling_time = roundN(two_pipes_opt(reservoir_fill_values),3);
+                    double optimal_filling_time = roundN(two_pipes_opt(reservoir_fill_values), 3);
                     time += optimal_filling_time;
                     log_time({to_string(optimal_filling_time) + " минут - заполнение резервуаров двумя шлангами на станции " + to_string(st)}, time_log);
                 }
                 else {
-                    int optimal_filling_time = roundN(compartments[int(station_comps[st][0] - '0')] / 1000 * 3, 3);
+                    double optimal_filling_time = roundN(compartments[int(station_comps[st][0] - '0')] / 1000.0 * 3, 3);
                        time += optimal_filling_time;
                        log_time({to_string(optimal_filling_time) + " минут - заполнение одного резервуара одним шлангом на станции " + to_string(st)}, time_log);
-            
-                time += roundN(pour_time, 3);
-                log_time({to_string(roundN(pour_time,3)) + "минут - заполнение резервуаров одним шлангом в депо"}, time_log);
                 }
             }
+            time += roundN(pour_time, 3);
+            log_time({to_string(roundN(pour_time,3)) + "минут - заполнение резервуаров одним шлангом в депо"}, time_log);
+            
         }
 
         int first = perm[0];                                      // достали станцию

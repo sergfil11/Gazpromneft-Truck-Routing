@@ -12,30 +12,22 @@ using namespace std;
 class Station {
 public:
     int number;
-    int time_to_depot;
-    int time_from_depot;
-    vector<int> demand;
-    vector<int> remaining_spaces;
-    vector<int> demanded_res;
-    vector<int> filled_values;
+    double time_to_depot;
+    double time_from_depot;
+    vector<double> demand;
+    vector<double> remaining_spaces;
 
     // конструктор
-    Station(int number, int time_to_depot, int time_from_depot,
-            const vector<int>& demand, const vector<int>& remaining_spaces);
+    Station(int number, double time_to_depot, double time_from_depot,
+            const vector<double>& demand, const vector<double>& remaining_spaces);
 
 };
 
 class Truck {
 public:
     int number;
-    vector<int> compartments;
-    int remaining_time;
-    int total_trips;
-    double pour_time;
-    // optional<int> FuelTankerID;
-
-    Truck(int number, const vector<int>& compartments);
-
+    vector<double> compartments;
+    Truck(int number, const vector<double>& compartments);
 };
 
 // Utility
@@ -64,7 +56,7 @@ double roundN(double val, int n);
 pair<vector<int>, vector<vector<vector<string>>>> dp_max_unique_digits_all_masks(const map<int, vector<string>>& possible_combinations, int comp_num);
 
 // Находит все допустимые комбинации отсеков между min[i] и max[i]
-vector<vector<string>> possible_filling(const vector<int>& compartments, const vector<int>& mins, const vector<int>& maxs);
+vector<vector<string>> possible_filling(const vector<double>& compartments, const vector<double>& mins, const vector<double>& maxs);
 
 // Возвращает заполнения для выбранного грузовика и станций
 vector<vector<string>> get_fillings(const Truck& truck, const vector<Station>& chosen_stations, const map<pair<int, int>, int>& gl_num);
@@ -94,18 +86,18 @@ set<vector<string>> find_routes(
     int H
     );
 
-int two_pipes_opt(const vector<int>& fill_times);
+double two_pipes_opt(const vector<double>& fill_times);
 
 // void log_time(const vector<string>& messages, vector<string>& time_log);
 
-pair<int, vector<string>> compute_time_for_route(
+pair<double, vector<string>> compute_time_for_route(
     const map<int, pair<int, int>>& reverse_index,
-    const vector<int>& compartments, 
+    const vector<double>& compartments, 
     const vector<string>& fill,
     bool double_piped,
     const vector<Station>& input_station_list,
     const vector<vector<double>>& demanded_matrix,
-    const vector<int>& docs_fill
+    const vector<double>& docs_fill
     );
 
 

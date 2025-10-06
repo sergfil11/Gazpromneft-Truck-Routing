@@ -1,6 +1,7 @@
 #include <iostream>
 #include <algorithm>
 #include <memory>
+#include <prep_functions.hpp>
 #include "gurobi.hpp"
 using namespace std;
 
@@ -13,7 +14,7 @@ using namespace std;
 unique_ptr<GurobiCoveringResult> gurobi_covering(
     const map<int, vector<vector<int>>>& filling_on_route,  // маршруты
     const map<pair<int,int>, double>& sigma,                // время на маршрут
-    const vector<map<string,int>>& reservoirs,              // {min,max}
+    const vector<map<string, double>>& reservoirs,              // {min,max}
     int tank_count,
     int H,
     int K,
@@ -38,7 +39,7 @@ unique_ptr<GurobiCoveringResult> gurobi_covering(
         owning = vector<int>(K, 1);
     } else {
         for (int k = 0; k < K; ++k) {
-            owning[k] = owning[k]*1000;
+            owning[k] = owning[k]*1000 + 1;
         }
     }
 
@@ -60,12 +61,10 @@ unique_ptr<GurobiCoveringResult> gurobi_covering(
     }
 
     // Переменные g[k,r]
-    for (int k = 0; k < K; ++k) {
-        if (filling_on_route.count(k) == 0) continue;
-        const auto& routes = filling_on_route.at(k);
+    for (const auto& [k, routes] : filling_on_route) {
         for (int r = 0; r < (int)routes.size(); ++r) {
             string var_name = "g_" + to_string(k) + "_" + to_string(r);
-            result->g[make_pair(k,r)] = result->model->addVar(0.0, 1.0, 0.0, GRB_BINARY, var_name);
+            result->g[{k,r}] = result->model->addVar(0.0, 1.0, 0.0, GRB_BINARY, var_name);
         }
     }
 
@@ -76,7 +75,7 @@ unique_ptr<GurobiCoveringResult> gurobi_covering(
 
     // Ограничения (4.2)–(4.5)
     for (int i = 0; i < tank_count; ++i) {
-        if (reservoirs[i].at("min") > 0) {
+        if (reservoirs[i].at("min") > 0.0) {
             GRBLinExpr lhs = 0;
             for (int k = 0; k < K; ++k) {
                 if (filling_on_route.count(k) == 0) continue;
@@ -84,7 +83,7 @@ unique_ptr<GurobiCoveringResult> gurobi_covering(
                 for (int r = 0; r < (int)routes.size(); ++r) lhs += b[{i,k,r}] * result->g[{k,r}];
             }
             result->model->addConstr(lhs == 1, "Reservoir_" + to_string(i));
-        } else if (reservoirs[i].at("min") <= 0.1) {
+        } else if (reservoirs[i].at("min") == 0.0) {
             GRBLinExpr lhs = 0;
             for (int k = 0; k < K; ++k) {
                 if (filling_on_route.count(k) == 0) continue;
@@ -203,7 +202,7 @@ void gurobi_results(
                             cout << endl;
                         }
 
-                        double route_time = sigma.at({k,r});
+                        double route_time = roundN(sigma.at({k,r}), 3);
                         cout << "  Время маршрута - " << route_time << " минут, в том числе:" << endl;
                         total_time += route_time;
 
