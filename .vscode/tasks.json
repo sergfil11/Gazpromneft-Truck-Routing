@@ -9,6 +9,7 @@
         "/EHsc",
         "/MD",
         "/std:c++20",
+        "/openmp",    // параллелизм
         "/I", "C:\\gurobi1203\\include",
         "/I", "${workspaceFolder}\\include",
         "src\\gurobi.cpp",

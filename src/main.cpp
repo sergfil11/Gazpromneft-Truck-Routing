@@ -323,7 +323,7 @@ int main() {
 
 
     int R1 = 3;
-    int R2 = 5;
+    int R2 = 10;
     double_piped = vector<bool>(K, true);
     H_k = vector<double>(K, 720);
     loading_prepared = vector<int>(K, 1);
@@ -386,7 +386,7 @@ int main() {
     }
     file.close();
 
-    auto tt = chrono::system_clock::now();
+    auto t3 = chrono::system_clock::now();
     auto res = gurobi_covering(
         filling_on_route,
         sigma,
@@ -399,8 +399,8 @@ int main() {
         H_k_out,
         owning
     );
-    auto ttt = chrono::system_clock::now();
-    cout << "Время работы Gurobi: " << roundN(chrono::duration<double>(ttt - tt).count(), 3) << " сек." << endl;
+    auto t4 = chrono::system_clock::now();
+    cout << "Время работы Gurobi: " << roundN(chrono::duration<double>(t4 - t3).count(), 3) << " сек." << endl;
 
     // GRBModel& model = ;
     // auto& y = ;

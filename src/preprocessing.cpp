@@ -2,6 +2,7 @@
 #include <numeric>
 #include <iostream>
 #include <chrono>
+#include <omp.h>
 
 
 /**
@@ -141,8 +142,13 @@ gurobi_preprocessing(
   
    
  set<pair<int, vector<string>>> result = {};
+
+ // вектор локальных результатов для каждого треда
+ vector<set<pair<int, vector<string>>>> local_results(trucks.size());
+
+ #pragma omp parallel for
  for (int idx = 0; idx < trucks.size(); ++idx) {
-      vector <double> truck = trucks[idx];
+      const vector<double>& truck = trucks[idx];
       // станцию и матрицу времени нужно обрезать в случае ограничений a_ik
 
       // допустимые станции для бензовоза
@@ -180,16 +186,23 @@ gurobi_preprocessing(
           local_index[accessible_st[i].number] = i;
       }
       
+      set<pair<int, vector<string>>> local_set;
+      
       // для параметров (1..R1)
       for (int r = 1; r < R1+1; r++) {
           set<vector<string>> val = all_fillings(accessible_st, Truck(idx, truck), accessible_matrix, gl_num, H_k[idx], r, R2, local_index);
           
           // print(f'Маршрутов для бензовоза {idx}: {len(val)}')
           for (vector<string> elem : val){
-              result.insert({idx, elem});
+              local_set.insert({idx, elem});
               // print(elem)
           }
       }
+      local_results[idx] = move(local_set);
+  }
+  // объединяем результаты всех нитей
+  for (const auto& s : local_results) {
+    result.insert(s.begin(), s.end());
   }
 
   auto t2 = chrono::system_clock::now();
@@ -222,6 +235,11 @@ gurobi_preprocessing(
   
   map<pair<int,int>, double> sigma;
   map<pair<int,int>, vector<string>> timelogs;
+  // локальные структуры для потоков
+  vector<map<pair<int,int>, double>> local_sigma(K);
+  vector<map<pair<int,int>, vector<string>>> local_timelogs(K);
+
+  #pragma omp parallel for
   for (int truck = 0; truck < K; ++truck) {
     if (filling_on_route.count(truck) > 0) {
         for (int route = 0; route < filling_on_route.at(truck).size(); ++route) {
@@ -235,20 +253,29 @@ gurobi_preprocessing(
                 demanded_matrix,
                 docs_fill
             );
-            sigma[{truck, route}] = computed_time;
-            timelogs[{truck, route}] = timelog;
+            local_sigma[truck][{truck, route}] = computed_time;
+            local_timelogs[truck][{truck, route}] = timelog;
         }
     }
   }
 
-  // по паре (номер бензовоза, паттерн заполнения) возвращаем маршрут с минимальным временем, соответствующий этому паттерну (его время, заполнение и лог)
-  map<pair<int, vector<int>>, tuple<double, vector<string>, vector<string>>> best_by_pattern = {};         
+  for (int truck = 0; truck < K; ++truck) {
+    sigma.insert(local_sigma[truck].begin(), local_sigma[truck].end());
+    timelogs.insert(local_timelogs[truck].begin(), local_timelogs[truck].end());
+  }
+
+
+  // локальные структуры для потоков
+  vector<map<pair<int, vector<int>>, 
+                     tuple<double, vector<string>, vector<string>>>> local_best(K);      
+  #pragma omp parallel for
   for (int truck = 0; truck < K; ++truck) {                                                             
     if (filling_on_route.count(truck) > 0) {
         for (int route_idx = 0; route_idx < filling_on_route.at(truck).size(); ++route_idx) {
             vector<string> fill = filling_on_route.at(truck)[route_idx];
             
             vector<int> pattern = {};
+            pattern.reserve(fill.size());
             for (int i = 0; i < fill.size(); ++i) {
                 pattern.push_back(fill[i].empty() ? 0 : 1);
             }
@@ -257,11 +284,23 @@ gurobi_preprocessing(
             vector<string> r_log = timelogs[{truck, route_idx}];
             pair<int, vector<int>> key = {truck, pattern};
 
-            if (best_by_pattern.count(key) == 0 or r_time < get<0>(best_by_pattern[key]))       // если еще нет такого паттерна, или время лучше, обновляем
-                best_by_pattern[key] = {r_time, fill, r_log};
+            auto it = local_best[truck].find(key);
+            if (it == local_best[truck].end() || r_time < get<0>(it->second))
+                local_best[truck][key] = {r_time, fill, r_log};
+
+            // if (best_by_pattern.count(key) == 0 or r_time < get<0>(best_by_pattern[key]))       // если еще нет такого паттерна, или время лучше, обновляем
+            //     best_by_pattern[key] = {r_time, fill, r_log};
         }
     }
   }
+  
+  // по паре (номер бензовоза, паттерн заполнения) возвращаем маршрут с минимальным временем, соответствующий этому паттерну (его время, заполнение и лог)
+  map<pair<int, vector<int>>, tuple<double, vector<string>, vector<string>>> best_by_pattern = {};   
+  
+  for (const auto& lb : local_best) {
+    best_by_pattern.insert(lb.begin(), lb.end());
+  }
+
   cout << "Лучших по паттерну маршрутов:"  << best_by_pattern.size() << endl;
 
   //  возможно надо сначала создать ключи а потом добавлять
